@@ -197,7 +197,7 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// No database providers are configured. Configure a database provider by overriding OnConfiguring in your DbContext class or in the AddDbContext method when setting up services.
+        /// No database providers are configured. You can configure a database provider by calling the AddDbContext method when setting up services and then instantiating the derived DbContext class using dependency injection, or by overriding OnConfiguring in your DbContext class.
         /// </summary>
         public static string NoProviderConfigured
         {

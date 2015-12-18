@@ -187,7 +187,7 @@
     <value>The database providers {storeNames}are configured. A context can only be configured to use a single database provider.</value>
   </data>
   <data name="NoProviderConfigured" xml:space="preserve">
-    <value>No database providers are configured. Configure a database provider by overriding OnConfiguring in your DbContext class or in the AddDbContext method when setting up services.</value>
+    <value>No database providers are configured. You can configure a database provider by calling the AddDbContext method when setting up services and then instantiating the derived DbContext class using dependency injection, or by overriding OnConfiguring in your DbContext class.</value>
   </data>
   <data name="NoProviderServices" xml:space="preserve">
     <value>No database providers are available. Ensure that database provider services are added inside the call to AddEntityFramework on your ServiceCollection.</value>
