@@ -144,7 +144,11 @@ namespace Microsoft.Data.Entity.Query.Sql
                 }
 
                 var comparisonTransformer = new ProjectionComparisonTransformingVisitor();
-                var transformedProjections = selectExpression.Projection.Select(comparisonTransformer.Visit).ToList();
+                var nullComparisonTransformer = new NullComparisonTransformingVisitor(_parametersValues);
+                var transformedProjections = selectExpression.Projection
+                    .Select(comparisonTransformer.Visit)
+                    .Select(nullComparisonTransformer.Visit)
+                    .ToList();
 
                 VisitJoin(transformedProjections);
 
@@ -321,99 +325,99 @@ namespace Microsoft.Data.Entity.Query.Sql
             switch (arguments.NodeType)
             {
                 case ExpressionType.Parameter:
+                {
+                    var parameterExpression = (ParameterExpression)arguments;
+
+                    object parameterValue;
+                    if (parameters.TryGetValue(parameterExpression.Name, out parameterValue))
                     {
-                        var parameterExpression = (ParameterExpression)arguments;
-
-                        object parameterValue;
-                        if (parameters.TryGetValue(parameterExpression.Name, out parameterValue))
-                        {
-                            var argumentValues = (object[])parameterValue;
-                            var relationalParameters = new IRelationalParameter[argumentValues.Length];
-
-                            substitutions = new string[argumentValues.Length];
-
-                            for (var i = 0; i < argumentValues.Length; i++)
-                            {
-                                var parameterName = _parameterNameGenerator.GenerateNext();
-
-                                substitutions[i] = SqlGenerator.GenerateParameterName(parameterName);
-
-                                var value = argumentValues[i];
-
-                                relationalParameters[i]
-                                    = _relationalCommandBuilder
-                                        .CreateParameter(
-                                            substitutions[i],
-                                            value,
-                                            t => t.GetMappingForValue(value),
-                                            value?.GetType().IsNullableType(),
-                                            parameterName);
-                            }
-
-                            _relationalCommandBuilder.AddParameter(
-                                new CompositeRelationalParameter(
-                                    parameterExpression.Name,
-                                    relationalParameters));
-                        }
-
-                        break;
-                    }
-                case ExpressionType.Constant:
-                    {
-                        var constantExpression = (ConstantExpression)arguments;
-                        var argumentValues = (object[])constantExpression.Value;
+                        var argumentValues = (object[])parameterValue;
+                        var relationalParameters = new IRelationalParameter[argumentValues.Length];
 
                         substitutions = new string[argumentValues.Length];
 
                         for (var i = 0; i < argumentValues.Length; i++)
                         {
-                            substitutions[i] = SqlGenerator.GenerateLiteral(argumentValues[i]);
+                            var parameterName = _parameterNameGenerator.GenerateNext();
+
+                            substitutions[i] = SqlGenerator.GenerateParameterName(parameterName);
+
+                            var value = argumentValues[i];
+
+                            relationalParameters[i]
+                                = _relationalCommandBuilder
+                                    .CreateParameter(
+                                        substitutions[i],
+                                        value,
+                                        t => t.GetMappingForValue(value),
+                                        value?.GetType().IsNullableType(),
+                                        parameterName);
                         }
 
-                        break;
+                        _relationalCommandBuilder.AddParameter(
+                            new CompositeRelationalParameter(
+                                parameterExpression.Name,
+                                relationalParameters));
                     }
-                case ExpressionType.NewArrayInit:
+
+                    break;
+                }
+                case ExpressionType.Constant:
+                {
+                    var constantExpression = (ConstantExpression)arguments;
+                    var argumentValues = (object[])constantExpression.Value;
+
+                    substitutions = new string[argumentValues.Length];
+
+                    for (var i = 0; i < argumentValues.Length; i++)
                     {
-                        var newArrayExpression = (NewArrayExpression)arguments;
+                        substitutions[i] = SqlGenerator.GenerateLiteral(argumentValues[i]);
+                    }
 
-                        substitutions = new string[newArrayExpression.Expressions.Count];
+                    break;
+                }
+                case ExpressionType.NewArrayInit:
+                {
+                    var newArrayExpression = (NewArrayExpression)arguments;
 
-                        for (var i = 0; i < newArrayExpression.Expressions.Count; i++)
+                    substitutions = new string[newArrayExpression.Expressions.Count];
+
+                    for (var i = 0; i < newArrayExpression.Expressions.Count; i++)
+                    {
+                        var expression = newArrayExpression.Expressions[i].RemoveConvert();
+
+                        // ReSharper disable once SwitchStatementMissingSomeCases
+                        switch (expression.NodeType)
                         {
-                            var expression = newArrayExpression.Expressions[i].RemoveConvert();
-
-                            // ReSharper disable once SwitchStatementMissingSomeCases
-                            switch (expression.NodeType)
+                            case ExpressionType.Constant:
                             {
-                                case ExpressionType.Constant:
-                                    {
-                                        substitutions[i]
-                                            = SqlGenerator
-                                                .GenerateLiteral(((ConstantExpression)expression).Value);
+                                substitutions[i]
+                                    = SqlGenerator
+                                        .GenerateLiteral(((ConstantExpression)expression).Value);
 
-                                        break;
-                                    }
-                                case ExpressionType.Parameter:
-                                    {
-                                        var parameter = (ParameterExpression)expression;
+                                break;
+                            }
+                            case ExpressionType.Parameter:
+                            {
+                                var parameter = (ParameterExpression)expression;
 
-                                        object value;
-                                        if (_parametersValues.TryGetValue(parameter.Name, out value))
-                                        {
-                                            var parameterName = _sqlGenerationHelper.GenerateParameterName(parameter.Name);
+                                object value;
+                                if (_parametersValues.TryGetValue(parameter.Name, out value))
+                                {
+                                    var parameterName = _sqlGenerationHelper.GenerateParameterName(parameter.Name);
 
-                                            substitutions[i] = parameterName;
+                                    substitutions[i] = parameterName;
 
-                                            _relationalCommandBuilder.AddParameter(parameterName, value, parameter.Name);
-                                        }
+                                    _relationalCommandBuilder.AddParameter(parameterName, value, parameter.Name);
+                                }
 
-                                        break;
-                                    }
+                                break;
                             }
                         }
-
-                        break;
                     }
+
+                    break;
+                }
             }
 
             if (substitutions != null)
@@ -1046,48 +1050,48 @@ namespace Microsoft.Data.Entity.Query.Sql
             switch (expression.NodeType)
             {
                 case ExpressionType.Not:
+                {
+                    var inExpression = expression.Operand as InExpression;
+
+                    if (inExpression != null)
                     {
-                        var inExpression = expression.Operand as InExpression;
-
-                        if (inExpression != null)
-                        {
-                            return VisitNotIn(inExpression);
-                        }
-
-                        var isNullExpression = expression.Operand as IsNullExpression;
-
-                        if (isNullExpression != null)
-                        {
-                            return VisitIsNotNull(isNullExpression);
-                        }
-
-                        if (!(expression.Operand is ColumnExpression
-                              || expression.Operand is ParameterExpression
-                              || expression.Operand.IsAliasWithColumnExpression()
-                              || expression.Operand is SelectExpression))
-                        {
-                            _relationalCommandBuilder.Append("NOT (");
-
-                            Visit(expression.Operand);
-
-                            _relationalCommandBuilder.Append(")");
-                        }
-                        else
-                        {
-                            Visit(expression.Operand);
-
-                            _relationalCommandBuilder.Append(" = ");
-                            _relationalCommandBuilder.Append(FalseLiteral);
-                        }
-
-                        return expression;
+                        return VisitNotIn(inExpression);
                     }
-                case ExpressionType.Convert:
+
+                    var isNullExpression = expression.Operand as IsNullExpression;
+
+                    if (isNullExpression != null)
+                    {
+                        return VisitIsNotNull(isNullExpression);
+                    }
+
+                    if (!(expression.Operand is ColumnExpression
+                          || expression.Operand is ParameterExpression
+                          || expression.Operand.IsAliasWithColumnExpression()
+                          || expression.Operand is SelectExpression))
+                    {
+                        _relationalCommandBuilder.Append("NOT (");
+
+                        Visit(expression.Operand);
+
+                        _relationalCommandBuilder.Append(")");
+                    }
+                    else
                     {
                         Visit(expression.Operand);
 
-                        return expression;
+                        _relationalCommandBuilder.Append(" = ");
+                        _relationalCommandBuilder.Append(FalseLiteral);
                     }
+
+                    return expression;
+                }
+                case ExpressionType.Convert:
+                {
+                    Visit(expression.Operand);
+
+                    return expression;
+                }
             }
 
             return base.VisitUnary(expression);
@@ -1175,10 +1179,11 @@ namespace Microsoft.Data.Entity.Query.Sql
         {
             protected override Expression VisitUnary(UnaryExpression node)
             {
-                if (node.NodeType == ExpressionType.Not)
+                if (node.NodeType == ExpressionType.Not
+                    && node.Operand is AliasExpression)
                 {
                     return Expression.Condition(
-                        Expression.NotEqual(node, Expression.Constant(true, typeof(bool))),
+                        node,
                         Expression.Constant(true, typeof(bool)),
                         Expression.Constant(false, typeof(bool)));
                 }
@@ -1187,19 +1192,37 @@ namespace Microsoft.Data.Entity.Query.Sql
             }
 
             protected override Expression VisitBinary(BinaryExpression node)
-                => Expression.Condition(
-                    node,
-                    Expression.Constant(true, typeof(bool)),
-                    Expression.Constant(false, typeof(bool)));
+            {
+                if (node.IsComparisonOperation())
+                {
+                    return Expression.Condition(
+                        node,
+                        Expression.Constant(true, typeof(bool)),
+                        Expression.Constant(false, typeof(bool)));
+                }
+
+                return base.VisitBinary(node);
+            }
+
 
             protected override Expression VisitConditional(ConditionalExpression node)
             {
-                if (node.Test is AliasExpression)
+                var test = Visit(node.Test);
+                if (test is AliasExpression)
                 {
                     return Expression.Condition(
-                        Expression.Equal(node.Test, Expression.Constant(true, typeof(bool))),
-                        node.IfTrue,
-                        node.IfFalse);
+                        Expression.Equal(test, Expression.Constant(true, typeof(bool))),
+                        Visit(node.IfTrue),
+                        Visit(node.IfFalse));
+                }
+
+                var condition = test as ConditionalExpression;
+                if (condition != null)
+                {
+                    return Expression.Condition(
+                        condition.Test,
+                        Visit(node.IfTrue),
+                        Visit(node.IfFalse));
                 }
                 return base.VisitConditional(node);
             }
