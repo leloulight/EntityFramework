@@ -24,6 +24,22 @@ namespace Microsoft.Data.Entity.FunctionalTests
         where TFixture : NorthwindQueryFixtureBase, new()
     {
         [ConditionalFact]
+        public virtual void Select_GroupBy()
+        {
+            using (var context = CreateContext())
+            {
+                var result = context.Orders
+                    .Select(o => new
+                    {
+                        Order = o.OrderID,
+                        Customer = o.CustomerID
+                    })
+                    .GroupBy(a => a.Customer)
+                    .ToList();
+            }
+        }
+
+        [ConditionalFact]
         public virtual void Queryable_simple()
         {
             AssertQuery<Customer>(
@@ -89,7 +105,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 cs => cs.OrderBy(c => c.CustomerID).Select(c => c.City).Take(10),
                 assertOrder: true);
         }
-        
+
         [ConditionalFact]
         public virtual void Take_subquery_projection()
         {
@@ -283,7 +299,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
 
         [ConditionalFact]
         public virtual void Any_nested_negated2()
-            {
+        {
             AssertQuery<Customer, Order>(
                 (cs, os) => cs.Where(c => c.City != "London"
                                           && !os.Any(o => o.CustomerID.StartsWith("A"))));
@@ -295,7 +311,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             AssertQuery<Customer, Order>(
                 (cs, os) => cs.Where(c => !os.Any(o => o.CustomerID.StartsWith("A"))
                                           && c.City != "London"));
-            }
+        }
 
         [ConditionalFact]
         public virtual void Any_nested()
@@ -1027,7 +1043,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 cs => cs.Where(c => DateTime.Now != myDatetime),
                 entryCount: 91);
         }
-        
+
         [ConditionalFact]
         public virtual void Where_datetime_utcnow()
         {
@@ -2301,7 +2317,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 join o in os on new Foo { Bar = c.CustomerID } equals new Foo { Bar = o.CustomerID }
                 select new { c, o });
         }
-        
+
         [ConditionalFact]
         public virtual void Join_local_collection_int_closure_is_cached_correctly()
         {
@@ -4096,7 +4112,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             AssertQuery<Customer>(cs =>
                 cs.Where(c => ids.Contains(c.CustomerID)), entryCount: 1);
 
-            ids = new []{ "ABCDE" };
+            ids = new[] { "ABCDE" };
 
             AssertQuery<Customer>(cs =>
                 cs.Where(c => ids.Contains(c.CustomerID)));

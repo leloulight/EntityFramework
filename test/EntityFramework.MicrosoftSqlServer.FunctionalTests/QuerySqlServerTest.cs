@@ -17,6 +17,18 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
 {
     public class QuerySqlServerTest : QueryTestBase<NorthwindQuerySqlServerFixture>
     {
+
+        public override void Select_GroupBy()
+        {
+            base.Select_GroupBy();
+
+            Assert.Equal(
+                @"SELECT [o].[OrderID], [o].[CustomerID]
+FROM [Orders] AS [o]
+ORDER BY [o].[CustomerID]",
+                Sql);
+        }
+
         public QuerySqlServerTest(NorthwindQuerySqlServerFixture fixture, ITestOutputHelper testOutputHelper)
             : base(fixture)
         {

@@ -184,6 +184,20 @@ namespace Microsoft.Data.Entity.Query
             var sequenceType
                 = entityQueryModelVisitor.Expression.Type.GetSequenceType();
 
+            var expression = entityQueryModelVisitor.Expression;
+
+            if (entityQueryModelVisitor.CurrentParameter.Type != sequenceType)
+            {
+                var methodCallExpression = expression as MethodCallExpression;
+
+                if(methodCallExpression != null)
+                {
+                    expression = methodCallExpression.Arguments[0];
+
+                    sequenceType = expression.Type.GetSequenceType();
+                }
+            }
+
             var keySelector
                 = entityQueryModelVisitor
                     .ReplaceClauseReferences(
@@ -196,14 +210,14 @@ namespace Microsoft.Data.Entity.Query
                         groupResultOperator.ElementSelector,
                         queryModel.MainFromClause);
 
-            var expression
+            expression
                 = Expression.Call(
                     entityQueryModelVisitor.LinqOperatorProvider.GroupBy
                         .MakeGenericMethod(
                             sequenceType,
                             keySelector.Type,
                             elementSelector.Type),
-                    entityQueryModelVisitor.Expression,
+                    expression,
                     Expression.Lambda(keySelector, entityQueryModelVisitor.CurrentParameter),
                     Expression.Lambda(elementSelector, entityQueryModelVisitor.CurrentParameter));
 
