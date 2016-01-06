@@ -8,6 +8,7 @@ using Xunit;
 
 namespace EntityFramework.Microbenchmarks.EF6.Query
 {
+    [SqlServerRequired]
     public class FuncletizationTests : IClassFixture<FuncletizationTests.FuncletizationFixture>
     {
         private readonly FuncletizationFixture _fixture;
@@ -88,7 +89,8 @@ namespace EntityFramework.Microbenchmarks.EF6.Query
         {
             public FuncletizationFixture()
                 : base("Perf_Query_Funcletization_EF6", 100, 0, 0, 0)
-            { }
+            {
+            }
         }
     }
 }

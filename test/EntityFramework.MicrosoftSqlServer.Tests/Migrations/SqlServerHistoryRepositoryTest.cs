@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Data.Entity.Infrastructure;
-using Microsoft.Data.Entity.Internal;
+using Microsoft.Data.Entity.Infrastructure.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Migrations.Internal;
 using Microsoft.Data.Entity.Storage;
@@ -29,7 +29,22 @@ namespace Microsoft.Data.Entity.Migrations
                 "CREATE TABLE [__EFMigrationsHistory] (" + EOL +
                 "    [MigrationId] nvarchar(150) NOT NULL," + EOL +
                 "    [ProductVersion] nvarchar(32) NOT NULL," + EOL +
-                "    CONSTRAINT [PK_HistoryRow] PRIMARY KEY ([MigrationId])" + EOL +
+                "    CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])" + EOL +
+                ");" + EOL,
+                sql);
+        }
+
+        [Fact]
+        public void GetCreateScript_works_with_schema()
+        {
+            var sql = CreateHistoryRepository("my").GetCreateScript();
+
+            Assert.Equal(
+                "IF SCHEMA_ID(N'my') IS NULL EXEC(N'CREATE SCHEMA [my]');" + EOL +
+                "CREATE TABLE [my].[__EFMigrationsHistory] (" + EOL +
+                "    [MigrationId] nvarchar(150) NOT NULL," + EOL +
+                "    [ProductVersion] nvarchar(32) NOT NULL," + EOL +
+                "    CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])" + EOL +
                 ");" + EOL,
                 sql);
         }
@@ -41,11 +56,31 @@ namespace Microsoft.Data.Entity.Migrations
 
             Assert.Equal(
                 "IF OBJECT_ID(N'__EFMigrationsHistory') IS NULL" + EOL +
+                "BEGIN" + EOL +
                 "    CREATE TABLE [__EFMigrationsHistory] (" + EOL +
                 "        [MigrationId] nvarchar(150) NOT NULL," + EOL +
                 "        [ProductVersion] nvarchar(32) NOT NULL," + EOL +
-                "        CONSTRAINT [PK_HistoryRow] PRIMARY KEY ([MigrationId])" + EOL +
-                "    );" + EOL,
+                "        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])" + EOL +
+                "    );" + EOL +
+                "END;" + EOL,
+                sql);
+        }
+
+        [Fact]
+        public void GetCreateIfNotExistsScript_works_with_schema()
+        {
+            var sql = CreateHistoryRepository("my").GetCreateIfNotExistsScript();
+
+            Assert.Equal(
+                "IF OBJECT_ID(N'my.__EFMigrationsHistory') IS NULL" + EOL +
+                "BEGIN" + EOL +
+                "    IF SCHEMA_ID(N'my') IS NULL EXEC(N'CREATE SCHEMA [my]');" + EOL +
+                "    CREATE TABLE [my].[__EFMigrationsHistory] (" + EOL +
+                "        [MigrationId] nvarchar(150) NOT NULL," + EOL +
+                "        [ProductVersion] nvarchar(32) NOT NULL," + EOL +
+                "        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])" + EOL +
+                "    );" + EOL +
+                "END;" + EOL,
                 sql);
         }
 
@@ -99,13 +134,13 @@ namespace Microsoft.Data.Entity.Migrations
         {
             var sql = CreateHistoryRepository().GetEndIfScript();
 
-            Assert.Equal("END" + EOL, sql);
+            Assert.Equal("END;" + EOL, sql);
         }
 
-        private static IHistoryRepository CreateHistoryRepository()
+        private static IHistoryRepository CreateHistoryRepository(string schema = null)
         {
             var annotationsProvider = new SqlServerAnnotationProvider();
-            var sqlGenerator = new SqlServerSqlGenerator();
+            var sqlGenerator = new SqlServerSqlGenerationHelper();
             var typeMapper = new SqlServerTypeMapper();
 
             var commandBuilderFactory = new RelationalCommandBuilderFactory(
@@ -115,19 +150,23 @@ namespace Microsoft.Data.Entity.Migrations
 
             return new SqlServerHistoryRepository(
                 Mock.Of<IRelationalDatabaseCreator>(),
-                Mock.Of<ISqlCommandBuilder>(),
+                Mock.Of<IRawSqlCommandBuilder>(),
                 Mock.Of<ISqlServerConnection>(),
                 new DbContextOptions<DbContext>(
                     new Dictionary<Type, IDbContextOptionsExtension>
                     {
-                        { typeof(SqlServerOptionsExtension), new SqlServerOptionsExtension() }
+                        {
+                            typeof(SqlServerOptionsExtension),
+                            new SqlServerOptionsExtension { MigrationsHistoryTableSchema = schema}
+                        }
                     }),
                 new MigrationsModelDiffer(
+                    new SqlServerTypeMapper(),
                     annotationsProvider,
                     new SqlServerMigrationsAnnotationProvider()),
                 new SqlServerMigrationsSqlGenerator(
                     commandBuilderFactory,
-                    new SqlServerSqlGenerator(),
+                    new SqlServerSqlGenerationHelper(),
                     typeMapper,
                     annotationsProvider),
                 annotationsProvider,

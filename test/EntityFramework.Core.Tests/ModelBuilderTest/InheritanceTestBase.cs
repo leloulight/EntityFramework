@@ -1,15 +1,14 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Data.Entity.FunctionalTests;
 using Microsoft.Data.Entity.FunctionalTests.TestUtilities;
-using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Internal;
 using Xunit;
 
 // ReSharper disable once CheckNamespace
+
 namespace Microsoft.Data.Entity.Tests
 {
     public abstract partial class ModelBuilderTest
@@ -62,7 +61,7 @@ namespace Microsoft.Data.Entity.Tests
                 Assert.Equal(initialForeignKeys.Count(), ingredient.GetForeignKeys().Count());
                 Assert.Equal(initialReferencingForeignKeys.Count(), ingredient.GetReferencingForeignKeys().Count());
             }
-            
+
             [Fact]
             public virtual void Setting_base_type_to_null_fixes_relationships()
             {
@@ -132,7 +131,7 @@ namespace Microsoft.Data.Entity.Tests
                 derivedDependentEntityBuilder
                     .HasOne(e => (SpecialCustomer)e.Customer)
                     .WithMany(e => e.SpecialOrders);
-                
+
                 Assert.Empty(dependentEntityBuilder.Metadata.GetForeignKeys());
                 Assert.Empty(dependentEntityBuilder.Metadata.GetNavigations());
                 var newFk = derivedDependentEntityBuilder.Metadata.GetDeclaredNavigations().Single().ForeignKey;
@@ -143,6 +142,54 @@ namespace Microsoft.Data.Entity.Tests
                 Assert.Equal(nameof(Order.Customer), otherDerivedFk.DependentToPrincipal.Name);
                 Assert.Null(otherDerivedFk.PrincipalToDependent);
                 Assert.Equal(nameof(Order.CustomerId), otherDerivedFk.Properties.Single().Name);
+            }
+
+            [Fact]
+            public virtual void Setting_base_type_handles_require_value_generator_properly()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Ignore<Customer>();
+                modelBuilder.Entity<OrderDetails>();
+                modelBuilder.Entity<SpecialOrder>();
+
+                Assert.False(modelBuilder.Model.FindEntityType(typeof(OrderDetails)).FindProperty(OrderDetails.OrderIdProperty).RequiresValueGenerator);
+            }
+
+            [Fact]
+            public virtual void Can_create_relationship_between_base_type_and_derived_type()
+            {
+                var modelBuilder = CreateModelBuilder();
+                var relationshipBuilder = modelBuilder.Entity<BookLabel>().HasOne(e => e.SpecialBookLabel).WithMany(e => e.BookLabels);
+
+                Assert.NotNull(relationshipBuilder);
+                Assert.Equal(typeof(BookLabel), relationshipBuilder.Metadata.DeclaringEntityType.ClrType);
+                Assert.Equal(typeof(SpecialBookLabel), relationshipBuilder.Metadata.PrincipalEntityType.ClrType);
+                Assert.Equal("SpecialBookLabel", relationshipBuilder.Metadata.DependentToPrincipal.Name);
+                Assert.Equal("BookLabels", relationshipBuilder.Metadata.PrincipalToDependent.Name);
+                Assert.Equal("SpecialBookLabelId", relationshipBuilder.Metadata.Properties.Single().Name);
+                Assert.False(relationshipBuilder.Metadata.IsRequired);
+            }
+
+            [Fact]
+            public virtual void Removing_derived_type_make_sure_that_entity_type_is_removed_from_directly_derived_type()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Entity<Book>();
+                modelBuilder.Ignore<SpecialBookLabel>();
+                modelBuilder.Ignore<AnotherBookLabel>();
+
+                Assert.Empty(modelBuilder.Model.FindEntityType(typeof(BookLabel).FullName).GetDirectlyDerivedTypes());
+            }
+
+            [Fact]
+            public virtual void Do_not_run_relationship_discovery_on_entity_type_while_removing_it()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Entity<SpecialBookLabel>();
+                modelBuilder.Entity<AnotherBookLabel>();
+                modelBuilder.Ignore<BookLabel>();
+
+                Assert.Null(modelBuilder.Model.FindEntityType(typeof(BookLabel).FullName));
             }
         }
     }

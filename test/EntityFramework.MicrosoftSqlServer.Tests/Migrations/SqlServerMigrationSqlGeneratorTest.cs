@@ -24,7 +24,7 @@ namespace Microsoft.Data.Entity.Migrations
                         new FakeSensitiveDataLogger<RelationalCommandBuilderFactory>(),
                         new DiagnosticListener("Fake"),
                         typeMapper),
-                    new SqlServerSqlGenerator(),
+                    new SqlServerSqlGenerationHelper(),
                     typeMapper,
                     new SqlServerAnnotationProvider());
             }
@@ -83,6 +83,15 @@ namespace Microsoft.Data.Entity.Migrations
 
             Assert.Equal(
                 "ALTER TABLE [People] ADD [Alias] nvarchar(max) NOT NULL;" + EOL,
+                Sql);
+        }
+
+        public override void AddColumnOperation_with_maxLength()
+        {
+            base.AddColumnOperation_with_maxLength();
+
+            Assert.Equal(
+                "ALTER TABLE [Person] ADD [Name] nvarchar(30);" + EOL,
                 Sql);
         }
 

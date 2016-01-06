@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Linq;
 using Microsoft.Data.Entity.FunctionalTests;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.Northwind;
@@ -26,16 +27,16 @@ namespace Microsoft.Data.Entity.Sqlite.FunctionalTests
         {
             base.Take_Skip();
 
-            Assert.Equal(
+            Assert.Contains(
                 @"SELECT ""t0"".*
 FROM (
     SELECT ""c"".""CustomerID"", ""c"".""Address"", ""c"".""City"", ""c"".""CompanyName"", ""c"".""ContactName"", ""c"".""ContactTitle"", ""c"".""Country"", ""c"".""Fax"", ""c"".""Phone"", ""c"".""PostalCode"", ""c"".""Region""
     FROM ""Customers"" AS ""c""
     ORDER BY ""c"".""ContactName""
-    LIMIT 10
+    LIMIT @__p_0
 ) AS ""t0""
 ORDER BY ""t0"".""ContactName""
-LIMIT -1 OFFSET 5",
+LIMIT -1 OFFSET @__p_1",
                 Sql);
         }
 
@@ -44,6 +45,9 @@ LIMIT -1 OFFSET 5",
         {
         }
 
-        private static string Sql => TestSqlLoggerFactory.Sql;
+        private const string FileLineEnding = @"
+";
+
+        private static string Sql => TestSqlLoggerFactory.Sql.Replace(Environment.NewLine, FileLineEnding);
     }
 }

@@ -25,7 +25,7 @@ namespace Microsoft.Data.Entity.Migrations
                         new FakeSensitiveDataLogger<RelationalCommandBuilderFactory>(),
                         new DiagnosticListener("Fake"),
                         typeMapper),
-                    new SqliteSqlGenerator(),
+                    new SqliteSqlGenerationHelper(),
                     typeMapper,
                     new SqliteAnnotationProvider());
             }
@@ -203,6 +203,16 @@ namespace Microsoft.Data.Entity.Migrations
                 Sql);
         }
 
+        public override void AddColumnOperation_with_maxLength()
+        {
+            base.AddColumnOperation_with_maxLength();
+
+            // See issue #3698
+            Assert.Equal(
+                "ALTER TABLE \"Person\" ADD \"Name\" TEXT;" + EOL,
+                Sql);
+        }
+
         [Fact]
         public override void AddColumnOperation_with_computed_column_SQL()
         {
@@ -234,6 +244,12 @@ namespace Microsoft.Data.Entity.Migrations
         }
 
         public override void AddForeignKeyOperation_without_name()
+        {
+            var ex = Assert.Throws<NotSupportedException>(() => base.AddForeignKeyOperation_without_name());
+            Assert.Equal(SqliteStrings.InvalidMigrationOperation, ex.Message);
+        }
+
+        public override void AddForeignKeyOperation_without_principal_columns()
         {
             var ex = Assert.Throws<NotSupportedException>(() => base.AddForeignKeyOperation_without_name());
             Assert.Equal(SqliteStrings.InvalidMigrationOperation, ex.Message);

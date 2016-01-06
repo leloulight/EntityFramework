@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
+using Microsoft.Data.Entity.Query.ExpressionVisitors.Internal;
 using Microsoft.Data.Entity.Query.Internal;
 using Microsoft.Data.Entity.Storage;
 
@@ -26,13 +27,13 @@ namespace Microsoft.Data.Entity.Query
         [UsedImplicitly]
         internal static IAsyncEnumerable<T> _ShapedQuery<T>(
             QueryContext queryContext,
-            CommandBuilder commandBuilder,
-            Func<ValueBuffer, T> shaper)
+            ShaperCommandContext shaperCommandContext,
+            IShaper<T> shaper)
             => new AsyncQueryingEnumerable(
                 (RelationalQueryContext)queryContext,
-                commandBuilder,
+                shaperCommandContext,
                 queryIndex: null)
-                .Select(shaper); // TODO: Pass shaper to underlying enumerable
+                .Select(vb => shaper.Shape(queryContext, vb)); // TODO: Pass shaper to underlying enumerable
 
         public virtual MethodInfo QueryMethod => _queryMethodInfo;
 
@@ -43,11 +44,11 @@ namespace Microsoft.Data.Entity.Query
         [UsedImplicitly]
         private static IAsyncEnumerable<ValueBuffer> _Query(
             QueryContext queryContext,
-            CommandBuilder commandBuilder,
+            ShaperCommandContext shaperCommandContext,
             int? queryIndex)
             => new AsyncQueryingEnumerable(
-                ((RelationalQueryContext)queryContext),
-                commandBuilder,
+                (RelationalQueryContext)queryContext,
+                shaperCommandContext,
                 queryIndex);
 
         public virtual MethodInfo GetResultMethod => _getResultMethodInfo;
@@ -75,6 +76,100 @@ namespace Microsoft.Data.Entity.Query
             return default(TResult);
         }
 
+        public virtual MethodInfo GroupByMethod => _groupByMethodInfo;
+
+        private static readonly MethodInfo _groupByMethodInfo
+            = typeof(AsyncQueryMethodProvider)
+                .GetTypeInfo().GetDeclaredMethod(nameof(_GroupBy));
+
+        [UsedImplicitly]
+        private static IAsyncEnumerable<IGrouping<TKey, TElement>> _GroupBy<TSource, TKey, TElement>(
+            IAsyncEnumerable<TSource> source,
+            Func<TSource, TKey> keySelector,
+            Func<TSource, TElement> elementSelector)
+            => new GroupByAsyncEnumerable<TSource, TKey, TElement>(source, keySelector, elementSelector);
+
+        private class GroupByAsyncEnumerable<TSource, TKey, TElement> : IAsyncEnumerable<IGrouping<TKey, TElement>>
+        {
+            private readonly IAsyncEnumerable<TSource> _source;
+            private readonly Func<TSource, TKey> _keySelector;
+            private readonly Func<TSource, TElement> _elementSelector;
+
+            public GroupByAsyncEnumerable(
+                IAsyncEnumerable<TSource> source,
+                Func<TSource, TKey> keySelector,
+                Func<TSource, TElement> elementSelector)
+            {
+                _source = source;
+                _keySelector = keySelector;
+                _elementSelector = elementSelector;
+            }
+
+            public IAsyncEnumerator<IGrouping<TKey, TElement>> GetEnumerator() => new GroupByAsyncEnumerator(this);
+
+            private class GroupByAsyncEnumerator : IAsyncEnumerator<IGrouping<TKey, TElement>>
+            {
+                private readonly GroupByAsyncEnumerable<TSource, TKey, TElement> _groupByAsyncEnumerable;
+                private readonly IEqualityComparer<TKey> _comparer;
+
+                private IAsyncEnumerator<TSource> _sourceEnumerator;
+                private bool _hasNext;
+
+                public GroupByAsyncEnumerator(GroupByAsyncEnumerable<TSource, TKey, TElement> groupByAsyncEnumerable)
+                {
+                    _groupByAsyncEnumerable = groupByAsyncEnumerable;
+                    _comparer = EqualityComparer<TKey>.Default;
+                }
+
+                public async Task<bool> MoveNext(CancellationToken cancellationToken)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (_sourceEnumerator == null)
+                    {
+                        _sourceEnumerator = _groupByAsyncEnumerable._source.GetEnumerator();
+                        _hasNext = await _sourceEnumerator.MoveNext();
+                    }
+
+                    if (_hasNext)
+                    {
+                        var currentKey = _groupByAsyncEnumerable._keySelector(_sourceEnumerator.Current);
+                        var element = _groupByAsyncEnumerable._elementSelector(_sourceEnumerator.Current);
+                        var grouping = new Grouping<TKey, TElement>(currentKey) { element };
+
+                        while (true)
+                        {
+                            _hasNext = await _sourceEnumerator.MoveNext();
+
+                            if (!_hasNext)
+                            {
+                                break;
+                            }
+
+                            if (!_comparer.Equals(
+                                currentKey,
+                                _groupByAsyncEnumerable._keySelector(_sourceEnumerator.Current)))
+                            {
+                                break;
+                            }
+
+                            grouping.Add(_groupByAsyncEnumerable._elementSelector(_sourceEnumerator.Current));
+                        }
+
+                        Current = grouping;
+
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                public IGrouping<TKey, TElement> Current { get; private set; }
+
+                public void Dispose() => _sourceEnumerator?.Dispose();
+            }
+        }
+
         public virtual MethodInfo GroupJoinMethod => _groupJoinMethodInfo;
 
         private static readonly MethodInfo _groupJoinMethodInfo
@@ -83,36 +178,41 @@ namespace Microsoft.Data.Entity.Query
 
         [UsedImplicitly]
         private static IAsyncEnumerable<TResult> _GroupJoin<TOuter, TInner, TKey, TResult>(
+            QueryContext queryContext,
             IAsyncEnumerable<ValueBuffer> source,
-            Func<ValueBuffer, TOuter> outerFactory,
-            Func<ValueBuffer, TInner> innerFactory,
+            IShaper<TOuter> outerShaper,
+            IShaper<TInner> innerShaper,
             Func<TInner, TKey> innerKeySelector,
             Func<TOuter, IAsyncEnumerable<TInner>, TResult> resultSelector)
             => new GroupJoinAsyncEnumerable<TOuter, TInner, TKey, TResult>(
+                queryContext,
                 source,
-                outerFactory,
-                innerFactory,
+                outerShaper,
+                innerShaper,
                 innerKeySelector,
                 resultSelector);
 
         private class GroupJoinAsyncEnumerable<TOuter, TInner, TKey, TResult> : IAsyncEnumerable<TResult>
         {
+            private readonly QueryContext _queryContext;
             private readonly IAsyncEnumerable<ValueBuffer> _source;
-            private readonly Func<ValueBuffer, TOuter> _outerFactory;
-            private readonly Func<ValueBuffer, TInner> _innerFactory;
+            private readonly IShaper<TOuter> _outerShaper;
+            private readonly IShaper<TInner> _innerShaper;
             private readonly Func<TInner, TKey> _innerKeySelector;
             private readonly Func<TOuter, IAsyncEnumerable<TInner>, TResult> _resultSelector;
 
             public GroupJoinAsyncEnumerable(
+                QueryContext queryContext,
                 IAsyncEnumerable<ValueBuffer> source,
-                Func<ValueBuffer, TOuter> outerFactory,
-                Func<ValueBuffer, TInner> innerFactory,
+                IShaper<TOuter> outerShaper,
+                IShaper<TInner> innerShaper,
                 Func<TInner, TKey> innerKeySelector,
                 Func<TOuter, IAsyncEnumerable<TInner>, TResult> resultSelector)
             {
+                _queryContext = queryContext;
                 _source = source;
-                _outerFactory = outerFactory;
-                _innerFactory = innerFactory;
+                _outerShaper = outerShaper;
+                _innerShaper = innerShaper;
                 _innerKeySelector = innerKeySelector;
                 _resultSelector = resultSelector;
             }
@@ -146,8 +246,14 @@ namespace Microsoft.Data.Entity.Query
 
                     if (_hasNext)
                     {
-                        var outer = _groupJoinAsyncEnumerable._outerFactory(_sourceEnumerator.Current);
-                        var inner = _groupJoinAsyncEnumerable._innerFactory(_sourceEnumerator.Current);
+                        var outer
+                            = _groupJoinAsyncEnumerable._outerShaper
+                                .Shape(_groupJoinAsyncEnumerable._queryContext, _sourceEnumerator.Current);
+
+                        var inner
+                            = _groupJoinAsyncEnumerable._innerShaper
+                                .Shape(_groupJoinAsyncEnumerable._queryContext, _sourceEnumerator.Current);
+
                         var inners = new List<TInner>();
 
                         if (inner == null)
@@ -174,7 +280,9 @@ namespace Microsoft.Data.Entity.Query
                                 break;
                             }
 
-                            inner = _groupJoinAsyncEnumerable._innerFactory(_sourceEnumerator.Current);
+                            inner
+                                = _groupJoinAsyncEnumerable._innerShaper
+                                    .Shape(_groupJoinAsyncEnumerable._queryContext, _sourceEnumerator.Current);
 
                             if (inner == null)
                             {
@@ -294,7 +402,7 @@ namespace Microsoft.Data.Entity.Query
                 _materializer = materializer;
             }
 
-            public IAsyncEnumerable<EntityLoadInfo> GetRelatedValues(IKeyValue keyValue, Func<ValueBuffer, IKeyValue> keyFactory)
+            public IAsyncEnumerable<EntityLoadInfo> GetRelatedValues(IIncludeKeyComparer keyComparer)
             {
                 var valueBuffer = _queryContext.GetIncludeValueBuffer(_queryIndex).WithOffset(_valueBufferOffset);
 
@@ -376,10 +484,10 @@ namespace Microsoft.Data.Entity.Query
                     = new AsyncIncludeCollectionIterator(relatedValueBuffers.GetEnumerator());
             }
 
-            public IAsyncEnumerable<EntityLoadInfo> GetRelatedValues(IKeyValue keyValue, Func<ValueBuffer, IKeyValue> keyFactory)
+            public IAsyncEnumerable<EntityLoadInfo> GetRelatedValues(IIncludeKeyComparer keyComparer)
             {
                 return _includeCollectionIterator
-                    .GetRelatedValues(keyValue, keyFactory)
+                    .GetRelatedValues(keyComparer)
                     .Select(vr => new EntityLoadInfo(vr, _materializer));
             }
 

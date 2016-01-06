@@ -13,14 +13,6 @@ namespace Microsoft.Data.Entity.Internal
             = new ResourceManager("EntityFramework.Relational.RelationalStrings", typeof(RelationalStrings).GetTypeInfo().Assembly);
 
         /// <summary>
-        /// The value provided for argument '{argumentName}' must be a valid value of enum type '{enumType}'.
-        /// </summary>
-        public static string InvalidEnumValue([CanBeNull] object argumentName, [CanBeNull] object enumType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("InvalidEnumValue", "argumentName", "enumType"), argumentName, enumType);
-        }
-
-        /// <summary>
         /// Cannot create a ModificationFunction for an entity in state '{entityState}'.
         /// </summary>
         public static string ModificationFunctionInvalidEntityState([CanBeNull] object entityState)
@@ -109,35 +101,19 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The SQL Server sequence '{sequenceName}' was already specified with a different definition.
+        /// Opening connection to database '{database}' on server '{server}'.
         /// </summary>
-        public static string SequenceDefinitionMismatch([CanBeNull] object sequenceName)
+        public static string RelationalLoggerOpeningConnection([CanBeNull] object database, [CanBeNull] object server)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("SequenceDefinitionMismatch", "sequenceName"), sequenceName);
+            return string.Format(CultureInfo.CurrentCulture, GetString("RelationalLoggerOpeningConnection", "database", "server"), database, server);
         }
 
         /// <summary>
-        /// Creating database '{databaseName}'.
+        /// Closing connection to database '{database}' on server '{server}'.
         /// </summary>
-        public static string RelationalLoggerCreatingDatabase([CanBeNull] object databaseName)
+        public static string RelationalLoggerClosingConnection([CanBeNull] object database, [CanBeNull] object server)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("RelationalLoggerCreatingDatabase", "databaseName"), databaseName);
-        }
-
-        /// <summary>
-        /// Opening connection '{connectionString}'.
-        /// </summary>
-        public static string RelationalLoggerOpeningConnection([CanBeNull] object connectionString)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("RelationalLoggerOpeningConnection", "connectionString"), connectionString);
-        }
-
-        /// <summary>
-        /// Closing connection '{connectionString}'.
-        /// </summary>
-        public static string RelationalLoggerClosingConnection([CanBeNull] object connectionString)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("RelationalLoggerClosingConnection", "connectionString"), connectionString);
+            return string.Format(CultureInfo.CurrentCulture, GetString("RelationalLoggerClosingConnection", "database", "server"), database, server);
         }
 
         /// <summary>
@@ -178,78 +154,6 @@ namespace Microsoft.Data.Entity.Internal
         public static string BadSequenceString
         {
             get { return GetString("BadSequenceString"); }
-        }
-
-        /// <summary>
-        /// '{migrationId}' is not a valid migration identifier.
-        /// </summary>
-        public static string InvalidMigrationId([CanBeNull] object migrationId)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("InvalidMigrationId", "migrationId"), migrationId);
-        }
-
-        /// <summary>
-        /// The history repository includes a migration with the identifier '{migrationId}' but the migration assembly does not contain the corresponding migration class.
-        /// </summary>
-        public static string LocalMigrationNotFound([CanBeNull] object migrationId)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("LocalMigrationNotFound", "migrationId"), migrationId);
-        }
-
-        /// <summary>
-        /// Migrations-specific methods can only be used when the context is using a migrations-enabled database provider.
-        /// </summary>
-        public static string MigrationsNotInUse
-        {
-            get { return GetString("MigrationsNotInUse"); }
-        }
-
-        /// <summary>
-        /// Applying migration '{migrationId}'.
-        /// </summary>
-        public static string MigratorLoggerApplyingMigration([CanBeNull] object migrationId)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("MigratorLoggerApplyingMigration", "migrationId"), migrationId);
-        }
-
-        /// <summary>
-        /// Creating migration history table.
-        /// </summary>
-        public static string MigratorLoggerCreatingHistoryTable
-        {
-            get { return GetString("MigratorLoggerCreatingHistoryTable"); }
-        }
-
-        /// <summary>
-        /// Dropping migration history table.
-        /// </summary>
-        public static string MigratorLoggerDroppingHistoryTable
-        {
-            get { return GetString("MigratorLoggerDroppingHistoryTable"); }
-        }
-
-        /// <summary>
-        /// Reverting migration '{migrationId}'.
-        /// </summary>
-        public static string MigratorLoggerRevertingMigration([CanBeNull] object migrationId)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("MigratorLoggerRevertingMigration", "migrationId"), migrationId);
-        }
-
-        /// <summary>
-        /// The database is up to date.
-        /// </summary>
-        public static string MigratorLoggerUpToDate
-        {
-            get { return GetString("MigratorLoggerUpToDate"); }
-        }
-
-        /// <summary>
-        /// '{migrationType}' does not implement IMigrationMetadata.
-        /// </summary>
-        public static string MissingMigrationMetadata([CanBeNull] object migrationType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("MissingMigrationMetadata", "migrationType"), migrationType);
         }
 
         /// <summary>
@@ -357,7 +261,7 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Unapplying migration '{migration}'.
+        /// Reverting migration '{migration}'.
         /// </summary>
         public static string RevertingMigration([CanBeNull] object migration)
         {
@@ -389,22 +293,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// GetCreateScript only handles operations in a single batch. For more advanced scenarios, override HistoryRepository.GetCreateScript in your provider.
-        /// </summary>
-        public static string InvalidCreateScript
-        {
-            get { return GetString("InvalidCreateScript"); }
-        }
-
-        /// <summary>
-        /// The parameter '{parameterName}' was already specified with a different value.
-        /// </summary>
-        public static string DuplicateParameterName([CanBeNull] object parameterName)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("DuplicateParameterName", "parameterName"), parameterName);
-        }
-
-        /// <summary>
         /// Cannot configure the discriminator value for entity type '{entityType}' because it doesn't derive from '{rootEntityType}'.
         /// </summary>
         public static string DiscriminatorEntityTypeNotDerived([CanBeNull] object entityType, [CanBeNull] object rootEntityType)
@@ -415,9 +303,9 @@ namespace Microsoft.Data.Entity.Internal
         /// <summary>
         /// Cannot set discriminator value '{value}' for discriminator property '{discriminator}' because it is not assignable to property of type '{discriminatorType}'.
         /// </summary>
-        public static string DiscriminitatorValueIncompatible([CanBeNull] object value, [CanBeNull] object discriminator, [CanBeNull] object discriminatorType)
+        public static string DiscriminatorValueIncompatible([CanBeNull] object value, [CanBeNull] object discriminator, [CanBeNull] object discriminatorType)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("DiscriminitatorValueIncompatible", "value", "discriminator", "discriminatorType"), value, discriminator, discriminatorType);
+            return string.Format(CultureInfo.CurrentCulture, GetString("DiscriminatorValueIncompatible", "value", "discriminator", "discriminatorType"), value, discriminator, discriminatorType);
         }
 
         /// <summary>
@@ -445,15 +333,7 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Unable to materialize an entity of type '{entityType}' because it has an null key value.
-        /// </summary>
-        public static string InvalidKeyValue([CanBeNull] object entityType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("InvalidKeyValue", "entityType"), entityType);
-        }
-
-        /// <summary>
-        /// Unabled to compile the LINQ expression '{expression}' because it requires client evaluation, which is disabled. Either enable client evaluation or rewrite the query to not require client evaluation.
+        /// Unable to compile the LINQ expression '{expression}' because it requires client evaluation, which is disabled. Either enable client evaluation or rewrite the query to not require client evaluation.
         /// </summary>
         public static string ClientEvalDisabled([CanBeNull] object expression)
         {
@@ -466,14 +346,6 @@ namespace Microsoft.Data.Entity.Internal
         public static string ClientEvalWarning([CanBeNull] object expression)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("ClientEvalWarning", "expression"), expression);
-        }
-
-        /// <summary>
-        /// SQL parameter value logging is enabled. As SQL parameter values may include sensitive application data, this mode should only be enabled during development.
-        /// </summary>
-        public static string ParameterLoggingEnabled
-        {
-            get { return GetString("ParameterLoggingEnabled"); }
         }
 
         /// <summary>
@@ -490,6 +362,22 @@ namespace Microsoft.Data.Entity.Internal
         public static string DuplicateColumnName([CanBeNull] object columnName, [CanBeNull] object entityType, [CanBeNull] object property)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("DuplicateColumnName", "columnName", "entityType", "property"), columnName, entityType, property);
+        }
+
+        /// <summary>
+        /// The connection does not have any active transactions.
+        /// </summary>
+        public static string NoActiveTransaction
+        {
+            get { return GetString("NoActiveTransaction"); }
+        }
+
+        /// <summary>
+        /// Two entities cannot make conflicting updates to the same row.
+        /// </summary>
+        public static string ConflictingRowUpdates
+        {
+            get { return GetString("ConflictingRowUpdates"); }
         }
 
         private static string GetString(string name, params string[] formatterNames)

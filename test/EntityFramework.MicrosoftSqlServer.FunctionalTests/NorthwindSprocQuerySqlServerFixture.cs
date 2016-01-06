@@ -27,7 +27,7 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
                 .AddSqlServer()
                 .ServiceCollection()
                 .AddSingleton(TestSqlServerModelSource.GetFactory(OnModelCreating))
-                .AddInstance<ILoggerFactory>(new TestSqlLoggerFactory())
+                .AddSingleton<ILoggerFactory>(new TestSqlLoggerFactory())
                 .BuildServiceProvider();
 
             var optionsBuilder = new DbContextOptionsBuilder();
@@ -38,8 +38,7 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
 
             _options = optionsBuilder.Options;
 
-            _serviceProvider.GetRequiredService<ILoggerFactory>()
-                .MinimumLevel = LogLevel.Debug;
+            _serviceProvider.GetRequiredService<ILoggerFactory>();
         }
 
         public override NorthwindContext CreateContext()

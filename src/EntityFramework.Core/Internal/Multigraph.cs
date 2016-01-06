@@ -130,9 +130,9 @@ namespace Microsoft.Data.Entity.Internal
                     var candidateIndex = 0;
 
                     // Iterrate over the unsorted verticies
-                    while (candidateIndex < candidateVertices.Count
+                    while ((candidateIndex < candidateVertices.Count)
                            && !broken
-                           && canBreakEdge != null)
+                           && (canBreakEdge != null))
                     {
                         var candidateVertex = candidateVertices[candidateIndex];
 
@@ -271,8 +271,8 @@ namespace Microsoft.Data.Entity.Internal
                 // TODO: Support cycle-breaking?
 
                 var currentCycleVertex = predecessorCounts.First(p => p.Value != 0).Key;
-                var cycle = new List<TVertex>();
-                cycle.Add(currentCycleVertex);
+                var cyclicWalk = new List<TVertex>();
+                cyclicWalk.Add(currentCycleVertex);
                 var finished = false;
                 while (!finished)
                 {
@@ -284,13 +284,29 @@ namespace Microsoft.Data.Entity.Internal
                             predecessorCounts[currentCycleVertex] = -1;
 
                             currentCycleVertex = predecessor;
-                            cycle.Add(currentCycleVertex);
+                            cyclicWalk.Add(currentCycleVertex);
                             finished = predecessorCounts[predecessor] == -1;
                             break;
                         }
                     }
                 }
-                cycle.Reverse();
+                cyclicWalk.Reverse();
+
+                var cycle = new List<TVertex>();
+                var startingVertex = cyclicWalk.First();
+                cycle.Add(startingVertex);
+                foreach (var vertex in cyclicWalk.Skip(1))
+                {
+                    if (!vertex.Equals(startingVertex))
+                    {
+                        cycle.Add(vertex);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                cycle.Add(startingVertex);
 
                 // Throw an exception
                 if (formatCycle == null)

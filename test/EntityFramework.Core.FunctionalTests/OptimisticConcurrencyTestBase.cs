@@ -10,6 +10,7 @@ using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.ConcurrencyModel;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
+using Microsoft.Data.Entity.Update;
 using Xunit;
 
 namespace Microsoft.Data.Entity.FunctionalTests
@@ -27,11 +28,9 @@ namespace Microsoft.Data.Entity.FunctionalTests
 
         public static void SetOriginalValues(this InternalEntityEntry internalEntry, Dictionary<IProperty, object> values)
         {
-            var originalValues = internalEntry.OriginalValues;
-
             foreach (var value in values)
             {
-                originalValues[value.Key] = value.Value;
+                internalEntry.SetOriginalValue(value.Key, value.Value);
             }
         }
 
@@ -73,7 +72,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
         {
             if (internalEntry.EntityType.ClrType == typeof(Driver))
             {
-                var id = (int)internalEntry.GetPrimaryKeyValue().Value;
+                var id = ((Driver)internalEntry.Entity).Id;
                 return context.Set<Driver>()
                     .Where(d => d.Id == id)
                     .Select(d => d.GetValues(internalEntry.EntityType))
@@ -82,7 +81,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
 
             if (internalEntry.EntityType.ClrType == typeof(Engine))
             {
-                var id = (int)internalEntry.GetPrimaryKeyValue().Value;
+                var id = ((Engine)internalEntry.Entity).Id;
                 return context.Set<Engine>()
                     .Where(d => d.Id == id)
                     .Select(d => d.GetValues(internalEntry.EntityType))

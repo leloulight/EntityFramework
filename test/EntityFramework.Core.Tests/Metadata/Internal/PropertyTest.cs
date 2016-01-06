@@ -15,8 +15,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = new Model().AddEntityType(typeof(object));
             var property = entityType.AddProperty("Kake");
 
-            Assert.Null(property.ClrType);
-            Assert.Equal(typeof(string), ((IProperty)property).ClrType);
+            Assert.Equal(typeof(string), property.ClrType);
 
             property.ClrType = typeof(int);
             Assert.Equal(typeof(int), property.ClrType);
@@ -27,6 +26,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         {
             var entityType = new Model().AddEntityType(typeof(object));
             var principalProperty = entityType.AddProperty("Kake");
+            principalProperty.IsNullable = false;
             var key = entityType.AddKey(principalProperty);
             var dependentProperty = entityType.AddProperty("Alaska");
             entityType.AddForeignKey(dependentProperty, key, entityType);
@@ -38,24 +38,16 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         }
 
         [Fact]
-        public void Default_nullability_of_property_is_based_on_nullability_of_CLR_type_and_property_being_part_of_primary_key()
+        public void Default_nullability_of_property_is_based_on_nullability_of_CLR_type()
         {
             var entityType = new Model().AddEntityType(typeof(object));
             var stringProperty = entityType.AddProperty("stringName", typeof(string));
             var nullableIntProperty = entityType.AddProperty("nullableIntName", typeof(int?));
             var intProperty = entityType.AddProperty("intName", typeof(int));
 
-            Assert.Null(stringProperty.IsNullable);
-            Assert.True(((IProperty)stringProperty).IsNullable);
-            Assert.Null(stringProperty.IsNullable);
-            Assert.True(((IProperty)nullableIntProperty).IsNullable);
-            Assert.Null(intProperty.IsNullable);
-            Assert.False(((IProperty)intProperty).IsNullable);
-
-            entityType.SetPrimaryKey(stringProperty);
-
-            Assert.Null(stringProperty.IsNullable);
-            Assert.False(((IProperty)stringProperty).IsNullable);
+            Assert.True(stringProperty.IsNullable);
+            Assert.True(nullableIntProperty.IsNullable);
+            Assert.False(intProperty.IsNullable);
         }
 
         [Fact]
@@ -66,33 +58,27 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var intProperty = entityType.AddProperty("Id", typeof(int));
 
             stringProperty.IsNullable = false;
-            Assert.False(stringProperty.IsNullable.Value);
-            Assert.Null(intProperty.IsNullable);
+            Assert.False(stringProperty.IsNullable);
+            Assert.False(intProperty.IsNullable);
 
             stringProperty.IsNullable = true;
             intProperty.IsNullable = false;
-            Assert.True(stringProperty.IsNullable.Value);
-            Assert.False(intProperty.IsNullable.Value);
-
-            stringProperty.IsNullable = null;
-            intProperty.IsNullable = null;
-            Assert.Null(stringProperty.IsNullable);
-            Assert.Null(intProperty.IsNullable);
+            Assert.True(stringProperty.IsNullable);
+            Assert.False(intProperty.IsNullable);
         }
 
         [Fact]
-        public void Property_nullability_is_changed_if_property_made_part_of_primary_key()
+        public void Adding_a_nullable_property_to_a_key_throws()
         {
             var entityType = new Model().AddEntityType(typeof(object));
             var stringProperty = entityType.AddProperty("Name", typeof(string));
 
             stringProperty.IsNullable = true;
-            Assert.True(stringProperty.IsNullable.Value);
+            Assert.True(stringProperty.IsNullable);
 
-            stringProperty.DeclaringEntityType.SetPrimaryKey(stringProperty);
-
-            Assert.Null(stringProperty.IsNullable);
-            Assert.False(((IProperty)stringProperty).IsNullable);
+            Assert.Equal(CoreStrings.NullableKey(typeof(object).DisplayName(), stringProperty.Name),
+                Assert.Throws<InvalidOperationException>(() =>
+                    stringProperty.DeclaringEntityType.AddKey(stringProperty)).Message);
         }
 
         [Fact]
@@ -111,6 +97,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         {
             var entityType = new Model().AddEntityType(typeof(object));
             var stringProperty = entityType.AddProperty("Name", typeof(string));
+            stringProperty.IsNullable = false;
             stringProperty.DeclaringEntityType.SetPrimaryKey(stringProperty);
 
             Assert.Equal(
@@ -133,8 +120,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = new Model().AddEntityType(typeof(Entity));
             var property = entityType.AddProperty(nameof(Entity.Name));
 
-            Assert.Null(property.IsShadowProperty);
-            Assert.True(((IProperty)property).IsShadowProperty);
+            Assert.True(property.IsShadowProperty);
 
             property.ClrType = typeof(string);
             property.IsShadowProperty = false;
@@ -152,7 +138,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
 
             property.ClrType = typeof(int);
             Assert.Equal(CoreStrings.ClrPropertyOnShadowEntity(nameof(Entity.Name), "Entity"),
-            Assert.Throws<InvalidOperationException>(() => property.IsShadowProperty = false).Message);
+                Assert.Throws<InvalidOperationException>(() => property.IsShadowProperty = false).Message);
         }
 
         [Fact]
@@ -163,7 +149,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
 
             property.ClrType = typeof(int);
             Assert.Equal(CoreStrings.NoClrProperty("Random", nameof(Entity)),
-            Assert.Throws<InvalidOperationException>(() => property.IsShadowProperty = false).Message);
+                Assert.Throws<InvalidOperationException>(() => property.IsShadowProperty = false).Message);
         }
 
         [Fact]
@@ -174,7 +160,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
 
             property.ClrType = typeof(int);
             Assert.Equal(CoreStrings.PropertyWrongClrType(nameof(Entity.Name), nameof(Entity)),
-            Assert.Throws<InvalidOperationException>(() => property.IsShadowProperty = false).Message);
+                Assert.Throws<InvalidOperationException>(() => property.IsShadowProperty = false).Message);
         }
 
         [Fact]
@@ -184,8 +170,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var property = entityType.AddProperty("Name", typeof(string));
             property.IsShadowProperty = false;
 
-            Assert.Null(property.ValueGenerated);
-            Assert.Equal(ValueGenerated.Never, ((IProperty)property).ValueGenerated);
+            Assert.Equal(ValueGenerated.Never, property.ValueGenerated);
         }
 
         [Fact]
@@ -196,13 +181,10 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             property.IsShadowProperty = false;
 
             property.ValueGenerated = ValueGenerated.OnAddOrUpdate;
-            Assert.Equal(ValueGenerated.OnAddOrUpdate, property.ValueGenerated.Value);
+            Assert.Equal(ValueGenerated.OnAddOrUpdate, property.ValueGenerated);
 
             property.ValueGenerated = ValueGenerated.Never;
-            Assert.Equal(ValueGenerated.Never, property.ValueGenerated.Value);
-
-            property.ValueGenerated = null;
-            Assert.Null(property.ValueGenerated);
+            Assert.Equal(ValueGenerated.Never, property.ValueGenerated);
         }
 
         [Fact]
@@ -212,8 +194,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var property = entityType.AddProperty("Name", typeof(string));
             property.IsShadowProperty = false;
 
-            Assert.Null(property.IsConcurrencyToken);
-            Assert.False(((IProperty)property).IsConcurrencyToken);
+            Assert.False(property.IsConcurrencyToken);
         }
 
         [Fact]
@@ -225,13 +206,10 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             property.IsShadowProperty = false;
 
             property.IsConcurrencyToken = true;
-            Assert.True(property.IsConcurrencyToken.Value);
+            Assert.True(property.IsConcurrencyToken);
 
             property.IsConcurrencyToken = false;
-            Assert.False(property.IsConcurrencyToken.Value);
-
-            property.IsConcurrencyToken = null;
-            Assert.Null(property.IsConcurrencyToken);
+            Assert.False(property.IsConcurrencyToken);
         }
 
         [Fact]
@@ -241,20 +219,13 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var property = entityType.AddProperty("Name", typeof(string));
             property.IsShadowProperty = false;
 
-            Assert.Null(property.IsStoreGeneratedAlways);
-            Assert.False(((IProperty)property).IsStoreGeneratedAlways);
+            Assert.False(property.IsStoreGeneratedAlways);
 
             property.IsStoreGeneratedAlways = true;
-            Assert.True(property.IsStoreGeneratedAlways.Value);
-            Assert.True(((IProperty)property).IsStoreGeneratedAlways);
+            Assert.True(property.IsStoreGeneratedAlways);
 
             property.IsStoreGeneratedAlways = false;
-            Assert.False(property.IsStoreGeneratedAlways.Value);
-            Assert.False(((IProperty)property).IsStoreGeneratedAlways);
-
-            property.IsStoreGeneratedAlways = null;
-            Assert.Null(property.IsStoreGeneratedAlways);
-            Assert.False(((IProperty)property).IsStoreGeneratedAlways);
+            Assert.False(property.IsStoreGeneratedAlways);
         }
 
         [Fact]
@@ -289,10 +260,8 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var property = entityType.AddProperty("Name", typeof(string));
             property.IsShadowProperty = false;
 
-            Assert.Null(property.IsReadOnlyAfterSave);
-            Assert.False(((IProperty)property).IsReadOnlyAfterSave);
-            Assert.Null(property.IsReadOnlyBeforeSave);
-            Assert.False(((IProperty)property).IsReadOnlyBeforeSave);
+            Assert.False(property.IsReadOnlyAfterSave);
+            Assert.False(property.IsReadOnlyBeforeSave);
         }
 
         [Fact]
@@ -303,13 +272,10 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             property.IsShadowProperty = false;
             property.IsReadOnlyBeforeSave = true;
 
-            Assert.True(property.IsReadOnlyBeforeSave.Value);
+            Assert.True(property.IsReadOnlyBeforeSave);
 
             property.IsReadOnlyBeforeSave = false;
-            Assert.False(property.IsReadOnlyBeforeSave.Value);
-
-            property.IsReadOnlyBeforeSave = null;
-            Assert.Null(property.IsReadOnlyBeforeSave);
+            Assert.False(property.IsReadOnlyBeforeSave);
         }
 
         [Fact]
@@ -320,13 +286,10 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             property.IsShadowProperty = false;
             property.IsReadOnlyAfterSave = true;
 
-            Assert.True(property.IsReadOnlyAfterSave.Value);
+            Assert.True(property.IsReadOnlyAfterSave);
 
             property.IsReadOnlyAfterSave = false;
-            Assert.False(property.IsReadOnlyAfterSave.Value);
-
-            property.IsReadOnlyAfterSave = null;
-            Assert.Null(property.IsReadOnlyAfterSave);
+            Assert.False(property.IsReadOnlyAfterSave);
         }
 
         [Fact]
@@ -335,64 +298,15 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = new Model().AddEntityType(typeof(Entity));
             var property = entityType.AddProperty("Name", typeof(string));
             property.IsShadowProperty = false;
+
+            Assert.False(property.IsReadOnlyBeforeSave);
+            Assert.False(property.IsReadOnlyAfterSave);
+
             property.IsReadOnlyBeforeSave = true;
             property.IsReadOnlyAfterSave = true;
 
-            Assert.True(property.IsReadOnlyBeforeSave.Value);
-            Assert.True(property.IsReadOnlyAfterSave.Value);
-        }
-
-        [Fact]
-        public void Can_get_and_set_property_index_for_normal_property()
-        {
-            var entityType = new Model().AddEntityType(typeof(Entity));
-            var property = entityType.AddProperty("Name", typeof(string));
-            property.IsShadowProperty = false;
-
-            Assert.Equal(0, property.GetIndex());
-            Assert.Equal(-1, property.GetShadowIndex());
-
-            property.SetIndex(1);
-
-            Assert.Equal(1, property.GetIndex());
-            Assert.Equal(-1, property.GetShadowIndex());
-            
-            Assert.Equal(
-                "value",
-                Assert.Throws<ArgumentOutOfRangeException>(() => property.SetIndex(-1)).ParamName);
-
-            Assert.Equal(
-                "index",
-                Assert.Throws<ArgumentOutOfRangeException>(() => property.SetShadowIndex(-1)).ParamName);
-
-            Assert.Equal(
-                "index",
-                Assert.Throws<ArgumentOutOfRangeException>(() => property.SetShadowIndex(1)).ParamName);
-        }
-
-        [Fact]
-        public void Can_get_and_set_property_and_shadow_index_for_shadow_property()
-        {
-            var entityType = new Model().AddEntityType(typeof(object));
-            var property = entityType.AddProperty("Kake", typeof(int));
-            property.IsShadowProperty = true;
-
-            Assert.Equal(0, property.GetIndex());
-            Assert.Equal(0, property.GetShadowIndex());
-
-            property.SetIndex(1);
-            property.SetShadowIndex(2);
-
-            Assert.Equal(1, property.GetIndex());
-            Assert.Equal(2, property.GetShadowIndex());
-            
-            Assert.Equal(
-                "value",
-                Assert.Throws<ArgumentOutOfRangeException>(() => property.SetIndex(-1)).ParamName);
-
-            Assert.Equal(
-                "index",
-                Assert.Throws<ArgumentOutOfRangeException>(() => property.SetShadowIndex(-1)).ParamName);
+            Assert.True(property.IsReadOnlyBeforeSave);
+            Assert.True(property.IsReadOnlyAfterSave);
         }
 
         private class Entity

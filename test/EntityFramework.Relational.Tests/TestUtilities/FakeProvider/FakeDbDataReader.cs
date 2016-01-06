@@ -17,15 +17,13 @@ namespace Microsoft.Data.Entity.TestUtilities.FakeProvider
         private readonly IList<object[]> _results;
 
         private object[] _currentRow;
-        private int _rowIndex = 0;
+        private int _rowIndex;
 
         public FakeDbDataReader(string[] columnNames = null, IList<object[]> results = null)
         {
             _columnNames = columnNames ?? new string[0];
             _results = results ?? new List<object[]>();
         }
-
-        public int ReadCount { get; private set; }
 
         public override bool Read()
         {
@@ -50,11 +48,13 @@ namespace Microsoft.Data.Entity.TestUtilities.FakeProvider
         }
 
         public int CloseCount { get; private set; }
+
+#if NET451 || DNX451
         public override void Close()
         {
             CloseCount++;
         }
-
+#endif
         public int DisposeCount { get; private set; }
 
         protected override void Dispose(bool disposing)
@@ -63,7 +63,10 @@ namespace Microsoft.Data.Entity.TestUtilities.FakeProvider
             {
                 DisposeCount++;
 
-                base.Dispose(disposing);
+#if DNXCORE50
+                CloseCount++;
+#endif
+                base.Dispose(true);
             }
         }
 
@@ -81,78 +84,49 @@ namespace Microsoft.Data.Entity.TestUtilities.FakeProvider
         {
             GetInt32Count++;
 
-            return (Int32)_currentRow[ordinal];
+            return (int)_currentRow[ordinal];
         }
 
         public override object this[string name]
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            get { throw new NotImplementedException(); }
         }
 
         public override object this[int ordinal]
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            get { throw new NotImplementedException(); }
         }
 
         public override int Depth
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            get { throw new NotImplementedException(); }
         }
-
-
 
         public override bool HasRows
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            get { throw new NotImplementedException(); }
         }
 
         public override bool IsClosed
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            get { throw new NotImplementedException(); }
         }
 
         public override int RecordsAffected
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            get { throw new NotImplementedException(); }
         }
 
-        public override bool GetBoolean(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override bool GetBoolean(int ordinal) => (bool)_currentRow[ordinal];
 
-        public override byte GetByte(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override byte GetByte(int ordinal) => (byte)_currentRow[ordinal];
 
         public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
         {
             throw new NotImplementedException();
         }
 
-        public override char GetChar(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override char GetChar(int ordinal) => (char)_currentRow[ordinal];
 
         public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
         {
@@ -164,20 +138,11 @@ namespace Microsoft.Data.Entity.TestUtilities.FakeProvider
             throw new NotImplementedException();
         }
 
-        public override DateTime GetDateTime(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override DateTime GetDateTime(int ordinal) => (DateTime)_currentRow[ordinal];
 
-        public override decimal GetDecimal(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override decimal GetDecimal(int ordinal) => (decimal)_currentRow[ordinal];
 
-        public override double GetDouble(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override double GetDouble(int ordinal) => (double)_currentRow[ordinal];
 
         public override IEnumerator GetEnumerator()
         {
@@ -189,40 +154,26 @@ namespace Microsoft.Data.Entity.TestUtilities.FakeProvider
             throw new NotImplementedException();
         }
 
-        public override float GetFloat(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override float GetFloat(int ordinal) => (float)_currentRow[ordinal];
 
-        public override Guid GetGuid(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override Guid GetGuid(int ordinal) => (Guid)_currentRow[ordinal];
 
-        public override short GetInt16(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override short GetInt16(int ordinal) => (short)_currentRow[ordinal];
 
-        public override long GetInt64(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+        public override long GetInt64(int ordinal) => (long)_currentRow[ordinal];
 
         public override int GetOrdinal(string name)
         {
             throw new NotImplementedException();
         }
 
+#if NET451 || DNX451
         public override DataTable GetSchemaTable()
         {
             throw new NotImplementedException();
         }
-
-        public override string GetString(int ordinal)
-        {
-            throw new NotImplementedException();
-        }
+#endif
+        public override string GetString(int ordinal) => (string)_currentRow[ordinal];
 
         public override int GetValues(object[] values)
         {

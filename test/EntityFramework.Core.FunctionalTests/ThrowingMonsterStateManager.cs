@@ -20,8 +20,9 @@ namespace Microsoft.Data.Entity.FunctionalTests
             IValueGenerationManager valueGeneration,
             IModel model,
             IDatabase database,
+            IConcurrencyDetector concurrencyDetector,
             DbContext context)
-            : base(factory, subscriber, notifier, valueGeneration, model, database, context)
+            : base(factory, subscriber, notifier, valueGeneration, model, database, concurrencyDetector, context)
         {
         }
 

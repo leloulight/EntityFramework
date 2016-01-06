@@ -13,7 +13,7 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
     {
         public virtual InternalRelationshipBuilder Apply(InternalRelationshipBuilder relationshipBuilder)
         {
-            var foreignKey = (IForeignKey)relationshipBuilder.Metadata;
+            var foreignKey = relationshipBuilder.Metadata;
             if (!foreignKey.Properties.All(fk => fk.IsShadowProperty))
             {
                 return relationshipBuilder;
@@ -51,8 +51,8 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
                 }
             }
 
-            if (foreignKeyProperties == null
-                || relationshipBuilder.Metadata.DeclaringEntityType.FindForeignKey(foreignKeyProperties, foreignKey.PrincipalKey, foreignKey.PrincipalEntityType) != null)
+            if ((foreignKeyProperties == null)
+                || (relationshipBuilder.Metadata.DeclaringEntityType.FindForeignKey(foreignKeyProperties, foreignKey.PrincipalKey, foreignKey.PrincipalEntityType) != null))
             {
                 return relationshipBuilder;
             }
@@ -66,19 +66,19 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
             return relationshipBuilder;
         }
 
-        private bool ShouldInvert(
+        private static bool ShouldInvert(
             ForeignKey foreignKey,
             IReadOnlyList<Property> currentDependentCandidateProperties,
             IReadOnlyList<Property> currentPrincipalCandidateProperties)
         {
-            if (currentDependentCandidateProperties != null
-                && currentPrincipalCandidateProperties == null)
+            if ((currentDependentCandidateProperties != null)
+                && (currentPrincipalCandidateProperties == null))
             {
                 return false;
             }
 
-            if (currentDependentCandidateProperties == null
-                && currentPrincipalCandidateProperties != null)
+            if ((currentDependentCandidateProperties == null)
+                && (currentPrincipalCandidateProperties != null))
             {
                 return true;
             }
@@ -86,23 +86,23 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
             var navigationToPrincipal = foreignKey.DependentToPrincipal;
             var navigationToDependent = foreignKey.PrincipalToDependent;
 
-            if (navigationToPrincipal == null
-                && navigationToDependent != null)
+            if ((navigationToPrincipal == null)
+                && (navigationToDependent != null))
             {
                 return false;
             }
 
-            if (navigationToPrincipal != null
-                && navigationToDependent == null)
+            if ((navigationToPrincipal != null)
+                && (navigationToDependent == null))
             {
                 return true;
             }
 
             var principalPk = foreignKey.PrincipalEntityType.FindPrimaryKey();
             var principalPkReferenceThreshold = foreignKey.PrincipalKey == principalPk ? 1 : 0;
-            var isPrincipalKeyReferenced = principalPk != null && principalPk.FindReferencingForeignKeys().Count() > principalPkReferenceThreshold;
+            var isPrincipalKeyReferenced = (principalPk != null) && (principalPk.FindReferencingForeignKeys().Count() > principalPkReferenceThreshold);
             var dependentPk = foreignKey.DeclaringEntityType.FindPrimaryKey();
-            var isDependentPrimaryKeyReferenced = dependentPk != null && dependentPk.FindReferencingForeignKeys().Any();
+            var isDependentPrimaryKeyReferenced = (dependentPk != null) && dependentPk.FindReferencingForeignKeys().Any();
 
             if (isPrincipalKeyReferenced
                 && !isDependentPrimaryKeyReferenced)
@@ -149,10 +149,10 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
             return null;
         }
 
-        private IReadOnlyList<Property> GetCompatiblePrimaryKeyProperties(EntityType dependentEntityType, EntityType principalEntityType, IReadOnlyList<Property> propertiesToReference)
+        private static IReadOnlyList<Property> GetCompatiblePrimaryKeyProperties(EntityType dependentEntityType, EntityType principalEntityType, IReadOnlyList<Property> propertiesToReference)
         {
             var dependentPkProperties = dependentEntityType.FindPrimaryKey()?.Properties;
-            if (dependentPkProperties != null
+            if ((dependentPkProperties != null)
                 && ForeignKey.AreCompatible(
                     propertiesToReference,
                     dependentPkProperties,
@@ -197,12 +197,12 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
                 }
             }
 
-            if (propertiesToReference.Count == 1
-                && foreignKeyProperties.Count == 0)
+            if ((propertiesToReference.Count == 1)
+                && (foreignKeyProperties.Count == 0))
             {
                 var property = TryGetProperty(dependentEntityType,
                     baseName + "Id",
-                    ((IProperty)propertiesToReference.Single()).ClrType.UnwrapNullableType());
+                    propertiesToReference.Single().ClrType.UnwrapNullableType());
 
                 if (property != null)
                 {
@@ -237,16 +237,15 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
             return foreignKeyProperties;
         }
 
-        private Property TryGetProperty(EntityType entityType, string name, Type type)
+        private static Property TryGetProperty(EntityType entityType, string name, Type type)
         {
-            foreach (var mutableProperty in entityType.GetProperties())
+            foreach (var property in entityType.GetProperties())
             {
-                var property = (IProperty)mutableProperty;
                 if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase)
                     && !property.IsShadowProperty
-                    && property.ClrType.UnwrapNullableType() == type)
+                    && (property.ClrType.UnwrapNullableType() == type))
                 {
-                    return mutableProperty;
+                    return property;
                 }
             }
             return null;
@@ -257,22 +256,18 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
 
         public virtual InternalPropertyBuilder Apply(InternalPropertyBuilder propertyBuilder)
         {
-            if (!((IProperty)(propertyBuilder.Metadata)).IsShadowProperty)
+            if (!((IProperty)propertyBuilder.Metadata).IsShadowProperty)
             {
                 var entityType = propertyBuilder.Metadata.DeclaringEntityType;
-                var entityTypeBuilder = propertyBuilder.ModelBuilder.Entity(entityType.Name, ConfigurationSource.Convention);
 
-                foreach (var foreignKey in entityType.GetDeclaredForeignKeys().ToList())
+                foreach (var foreignKey in entityType.GetDeclaredForeignKeys().Concat(entityType.GetDerivedForeignKeys()).ToList())
                 {
-                    var relationshipBuilder = entityTypeBuilder.Relationship(foreignKey, ConfigurationSource.Convention);
-                    Apply(relationshipBuilder);
+                    Apply(foreignKey.Builder);
                 }
+
                 foreach (var foreignKey in entityType.GetReferencingForeignKeys().ToList())
                 {
-                    var relationshipBuilder = propertyBuilder.ModelBuilder
-                        .Entity(foreignKey.DeclaringEntityType.Name, ConfigurationSource.Convention)
-                        .Relationship(foreignKey, ConfigurationSource.Convention);
-                    Apply(relationshipBuilder);
+                    Apply(foreignKey.Builder);
                 }
             }
             return propertyBuilder;

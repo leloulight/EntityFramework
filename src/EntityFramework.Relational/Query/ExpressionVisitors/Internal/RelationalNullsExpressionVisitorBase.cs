@@ -19,11 +19,9 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             return isNullExpressionBuilder.ResultExpression;
         }
 
-        protected override Expression VisitExtension(Expression expression)
-        {
-            return expression is NotNullableExpression
-                ? expression
-                : base.VisitExtension(expression);
-        }
+        protected override Expression VisitExtension(Expression node)
+            => node is NotNullableExpression
+                ? node
+                : base.VisitExtension(node);
     }
 }

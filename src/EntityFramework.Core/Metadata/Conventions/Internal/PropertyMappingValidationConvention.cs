@@ -20,7 +20,7 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
 
             foreach (var entityType in modelBuilder.Metadata.GetEntityTypes())
             {
-                var unmappedProperty = entityType.GetProperties().FirstOrDefault(p => !IsMappedPrimitiveProperty(((IProperty)p).ClrType));
+                var unmappedProperty = entityType.GetProperties().FirstOrDefault(p => !IsMappedPrimitiveProperty(p.ClrType));
                 if (unmappedProperty != null)
                 {
                     throw new InvalidOperationException(CoreStrings.PropertyNotMapped(unmappedProperty.Name, entityType.Name));
@@ -45,7 +45,7 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
                     {
                         foreach (var clrProperty in clrProperties)
                         {
-                            var actualProperty = entityType.ClrType.GetRuntimeProperty(clrProperty);
+                            var actualProperty = entityType.ClrType.GetRuntimeProperties().First(p => p.Name == clrProperty);
                             var targetType = FindCandidateNavigationPropertyType(actualProperty);
                             if (targetType != null)
                             {

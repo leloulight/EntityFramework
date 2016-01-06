@@ -10,8 +10,13 @@
     "keyFile": "../../tools/Key.snk"
   },
   "dependencies": {
+<<<<<<< HEAD
     "EntityFramework.Core": "7.0.0-rc1-final",
     "System.Diagnostics.DiagnosticSource": "4.0.0-beta-23516"
+=======
+    "EntityFramework.Core": "7.0.0-*",
+    "System.Diagnostics.DiagnosticSource": "4.0.0-*"
+>>>>>>> refs/remotes/aspnet/dev
   },
   "compile": "..\\Shared\\*.cs",
   "namedResource": {
@@ -29,9 +34,15 @@
     },
     "dotnet5.4": {
       "dependencies": {
+<<<<<<< HEAD
         "System.Data.Common": "4.0.1-beta-23516",
         "System.Text.RegularExpressions": "4.0.11-beta-23516",
         "Microsoft.CSharp": "4.0.1-beta-23516"
+=======
+        "System.Data.Common": "4.0.1-*",
+        "System.Text.RegularExpressions": "4.0.11-*",
+        "Microsoft.CSharp": "4.0.1-*"
+>>>>>>> refs/remotes/aspnet/dev
       }
     },
     "netcore50": {

@@ -9,8 +9,14 @@
     "test": "xunit.runner.aspnet"
   },
   "frameworks": {
+<<<<<<< HEAD
     "net46": {},
     "dnx451": {},
     "dnxcore50": {}
+=======
+    "net451": { },
+    "dnx451": { },
+    "dnxcore50": { }
+>>>>>>> refs/remotes/aspnet/dev
   }
 }

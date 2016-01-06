@@ -21,7 +21,7 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
         public void Can_get_existing_entry_if_entity_is_already_tracked_otherwise_new_entry()
         {
             var stateManager = CreateStateManager(BuildModel());
-            var category = new Category { Id = 1 };
+            var category = new Category { Id = 1, PrincipalId = 777 };
 
             var entry = stateManager.GetOrCreateEntry(category);
 
@@ -37,18 +37,17 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
         public void StartTracking_throws_if_different_instance_with_same_identity_is_already_tracked()
         {
             var model = BuildModel();
-            var categoryType = model.FindEntityType(typeof(Category));
             var stateManager = CreateStateManager(model);
 
-            var entityKey = new SimpleKeyValue<int>(categoryType.FindPrimaryKey(), 77);
-            var valueBuffer = new ValueBuffer(new object[] { 77, "Bjork", null });
+            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 });
+            stateManager.StartTracking(entry1);
 
-            stateManager.StartTracking(categoryType, entityKey, new Category { Id = 77 }, valueBuffer);
+            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 });
 
             Assert.Equal(
                 CoreStrings.IdentityConflict("Category"),
                 Assert.Throws<InvalidOperationException>(
-                    () => stateManager.StartTracking(categoryType, entityKey, new Category { Id = 77 }, valueBuffer)).Message);
+                    () => stateManager.StartTracking(entry2)).Message);
         }
 
         [Fact]
@@ -58,64 +57,161 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var categoryType = model.FindEntityType(typeof(Category));
             var stateManager = CreateStateManager(model);
 
-            var category = new Category { Id = 77 };
-            var entityKey = new SimpleKeyValue<int>(categoryType.FindPrimaryKey(), 77);
-            var valueBuffer = new ValueBuffer(new object[] { 77, "Bjork", null });
+            var category = new Category { Id = 77, PrincipalId = 777 };
+            var valueBuffer = new ValueBuffer(new object[] { 77, "Bjork", 777 });
 
-            var entry = stateManager.StartTracking(categoryType, entityKey, category, valueBuffer);
+            var entry = stateManager.StartTrackingFromQuery(categoryType, category, valueBuffer);
 
-            Assert.Same(entry, stateManager.StartTracking(categoryType, entityKey, category, valueBuffer));
+            Assert.Same(entry, stateManager.StartTrackingFromQuery(categoryType, category, valueBuffer));
         }
 
         [Fact]
         public void StartTracking_throws_for_invalid_entity_key()
         {
             var model = BuildModel();
+            var stateManager = CreateStateManager(model);
+
+            var entry = stateManager.GetOrCreateEntry(new Dogegory { Id = null });
+
+            Assert.Equal(
+                CoreStrings.InvalidKeyValue("Dogegory"),
+                Assert.Throws<InvalidOperationException>(
+                    () => stateManager.StartTracking(entry)).Message);
+        }
+
+        [Fact]
+        public void State_manager_switches_out_of_single_query_mode_when_second_query_begins()
+        {
+            var model = BuildModel();
             var categoryType = model.FindEntityType(typeof(Category));
             var stateManager = CreateStateManager(model);
 
-            var valueBuffer = new ValueBuffer(new object[] { 0, "Bjork", null });
+            Assert.Null(stateManager.SingleQueryMode);
 
-            Assert.Equal(
-                CoreStrings.InvalidPrimaryKey("Category"),
-                Assert.Throws<InvalidOperationException>(
-                    () => stateManager.StartTracking(categoryType, KeyValue.InvalidKeyValue, new Category { Id = 0 }, valueBuffer)).Message);
+            stateManager.BeginTrackingQuery();
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 77, PrincipalId = 777 },
+                new ValueBuffer(new object[] { 77, "Bjork", 777 }));
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 78, PrincipalId = 778 },
+                new ValueBuffer(new object[] { 78, "Beck", 778 }));
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            stateManager.BeginTrackingQuery();
+
+            Assert.False(stateManager.SingleQueryMode);
+
+            stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 79, PrincipalId = 779 },
+                new ValueBuffer(new object[] { 79, "Bush", 779 }));
+
+            Assert.False(stateManager.SingleQueryMode);
         }
 
         [Fact]
-        public void Can_explicitly_create_new_entry_for_shadow_state_entity()
+        public void State_manager_switches_out_of_single_query_mode_when_tracked_state_changes_to_Modified()
         {
             var model = BuildModel();
+            var categoryType = model.FindEntityType(typeof(Category));
             var stateManager = CreateStateManager(model);
-            var entityType = model.FindEntityType("Location");
-            var entry = stateManager.CreateNewEntry(entityType);
-            entry[entityType.FindPrimaryKey().Properties.Single()] = 42;
 
-            Assert.Equal(EntityState.Detached, entry.EntityState);
-            Assert.Null(entry.Entity);
-            Assert.Equal(0, stateManager.Entries.Count());
+            Assert.Null(stateManager.SingleQueryMode);
 
-            stateManager.StartTracking(entry);
+            stateManager.BeginTrackingQuery();
 
-            Assert.Equal(1, stateManager.Entries.Count());
+            Assert.True(stateManager.SingleQueryMode);
+
+            stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 77, PrincipalId = 777 },
+                new ValueBuffer(new object[] { 77, "Bjork", 777 }));
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            var entry = stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 78, PrincipalId = 778 },
+                new ValueBuffer(new object[] { 78, "Beck", 778 }));
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            entry.SetEntityState(EntityState.Modified);
+
+            Assert.False(stateManager.SingleQueryMode);
         }
 
         [Fact]
-        public void Can_explicitly_create_new_entry_for_normal_state_entity()
+        public void State_manager_switches_out_of_single_query_mode_when_tracked_state_changes_to_Added()
         {
             var model = BuildModel();
+            var categoryType = model.FindEntityType(typeof(Category));
             var stateManager = CreateStateManager(model);
 
-            var entry = stateManager.CreateNewEntry(model.FindEntityType(typeof(Category)));
+            Assert.Null(stateManager.SingleQueryMode);
 
-            Assert.Equal(EntityState.Detached, entry.EntityState);
-            Assert.IsType<Category>(entry.Entity);
-            Assert.Equal(0, stateManager.Entries.Count());
+            stateManager.BeginTrackingQuery();
 
-            ((Category)entry.Entity).Id = 1;
-            stateManager.StartTracking(entry);
+            Assert.True(stateManager.SingleQueryMode);
 
-            Assert.Equal(1, stateManager.Entries.Count());
+            stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 77, PrincipalId = 777 },
+                new ValueBuffer(new object[] { 77, "Bjork", null }));
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            var entry = stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 78, PrincipalId = 778 },
+                new ValueBuffer(new object[] { 78, "Beck", 778 }));
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            entry.SetEntityState(EntityState.Added);
+
+            Assert.False(stateManager.SingleQueryMode);
+        }
+
+        [Fact]
+        public void State_manager_does_not_switch_out_of_single_query_mode_when_getting_existing_entry()
+        {
+            var model = BuildModel();
+            var categoryType = model.FindEntityType(typeof(Category));
+            var stateManager = CreateStateManager(model);
+
+            Assert.Null(stateManager.SingleQueryMode);
+
+            stateManager.BeginTrackingQuery();
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            var entry = stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 77, PrincipalId = 777 },
+                new ValueBuffer(new object[] { 77, "Bjork", 777 }));
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            stateManager.StartTrackingFromQuery(
+                categoryType,
+                new Category { Id = 78, PrincipalId = 778 },
+                new ValueBuffer(new object[] { 78, "Beck", 778 }));
+
+            Assert.True(stateManager.SingleQueryMode);
+
+            stateManager.GetOrCreateEntry(entry.Entity);
+
+            Assert.True(stateManager.SingleQueryMode);
         }
 
         [Fact]
@@ -135,7 +231,7 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
         public void Can_stop_tracking_and_then_start_tracking_again()
         {
             var stateManager = CreateStateManager(BuildModel());
-            var category = new Category { Id = 1 };
+            var category = new Category { Id = 1, PrincipalId = 777 };
 
             var entry = stateManager.GetOrCreateEntry(category);
             stateManager.StartTracking(entry);
@@ -150,7 +246,7 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
         public void Can_stop_tracking_and_then_start_tracking_using_a_new_state_entry()
         {
             var stateManager = CreateStateManager(BuildModel());
-            var category = new Category { Id = 1 };
+            var category = new Category { Id = 1, PrincipalId = 777 };
 
             var entry = stateManager.GetOrCreateEntry(category);
             stateManager.StartTracking(entry);
@@ -166,7 +262,7 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
         public void StopTracking_keeps_track_of_detached_entity_using_weak_reference()
         {
             var stateManager = CreateStateManager(BuildModel());
-            var category = new Category { Id = 1 };
+            var category = new Category { Id = 1, PrincipalId = 777 };
 
             var entry = stateManager.GetOrCreateEntry(category);
             stateManager.StartTracking(entry);
@@ -183,8 +279,8 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
         public void Throws_on_attempt_to_start_tracking_different_entities_with_same_identity()
         {
             var stateManager = CreateStateManager(BuildModel());
-            var category1 = new Category { Id = 7 };
-            var category2 = new Category { Id = 7 };
+            var category1 = new Category { Id = 7, PrincipalId = 777 };
+            var category2 = new Category { Id = 7, PrincipalId = 778 };
 
             var entry1 = stateManager.GetOrCreateEntry(category1);
             var entry2 = stateManager.GetOrCreateEntry(category2);
@@ -192,7 +288,7 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             stateManager.StartTracking(entry1);
 
             Assert.Equal(
-                CoreStrings.IdentityConflict(typeof(Category).FullName),
+                CoreStrings.IdentityConflict("Category"),
                 Assert.Throws<InvalidOperationException>(() => stateManager.StartTracking(entry2)).Message);
         }
 
@@ -205,7 +301,7 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var entry = stateManager.GetOrCreateEntry(entity);
 
             Assert.Equal(
-                CoreStrings.InvalidPrimaryKey(typeof(Dogegory).FullName),
+                CoreStrings.InvalidKeyValue("Dogegory"),
                 Assert.Throws<InvalidOperationException>(() => stateManager.StartTracking(entry)).Message);
         }
 
@@ -241,8 +337,8 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var productId1 = new Guid("984ade3c-2f7b-4651-a351-642e92ab7146");
             var productId2 = new Guid("0edc9136-7eed-463b-9b97-bdb9648ab877");
 
-            stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 77 }));
-            stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 78 }));
+            stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 }));
+            stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 78, PrincipalId = 778 }));
             stateManager.StartTracking(stateManager.GetOrCreateEntry(new Product { Id = productId1 }));
             stateManager.StartTracking(stateManager.GetOrCreateEntry(new Product { Id = productId2 }));
 
@@ -271,31 +367,31 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
         public void Listeners_are_notified_when_entity_states_change()
         {
             var listeners = new[]
-                {
-                    new Mock<IEntityStateListener>(),
-                    new Mock<IEntityStateListener>(),
-                    new Mock<IEntityStateListener>()
-                };
+            {
+                new Mock<IEntityStateListener>(),
+                new Mock<IEntityStateListener>(),
+                new Mock<IEntityStateListener>()
+            };
 
             var services = new ServiceCollection()
-                .AddInstance(listeners[0].Object)
-                .AddInstance(listeners[1].Object)
-                .AddInstance(listeners[2].Object);
+                .AddSingleton(listeners[0].Object)
+                .AddSingleton(listeners[1].Object)
+                .AddSingleton(listeners[2].Object);
 
             var contextServices = TestHelpers.Instance.CreateContextServices(services, BuildModel());
 
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
-            var entry = stateManager.GetOrCreateEntry(new Category { Id = 77 });
+            var entry = stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 });
             entry.SetEntityState(EntityState.Added);
 
             foreach (var listener in listeners)
             {
                 listener.Verify(m => m.StateChanging(entry, It.IsAny<EntityState>()), Times.Once);
-                listener.Verify(m => m.StateChanged(entry, It.IsAny<EntityState>()), Times.Once);
+                listener.Verify(m => m.StateChanged(entry, It.IsAny<EntityState>(), false), Times.Once);
 
                 listener.Verify(m => m.StateChanging(entry, EntityState.Added), Times.Once);
-                listener.Verify(m => m.StateChanged(entry, EntityState.Detached), Times.Once);
+                listener.Verify(m => m.StateChanged(entry, EntityState.Detached, false), Times.Once);
             }
 
             entry.SetEntityState(EntityState.Modified);
@@ -303,10 +399,10 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             foreach (var listener in listeners)
             {
                 listener.Verify(m => m.StateChanging(entry, It.IsAny<EntityState>()), Times.Exactly(2));
-                listener.Verify(m => m.StateChanged(entry, It.IsAny<EntityState>()), Times.Exactly(2));
+                listener.Verify(m => m.StateChanged(entry, It.IsAny<EntityState>(), false), Times.Exactly(2));
 
                 listener.Verify(m => m.StateChanging(entry, EntityState.Modified), Times.Once);
-                listener.Verify(m => m.StateChanged(entry, EntityState.Detached), Times.Once);
+                listener.Verify(m => m.StateChanged(entry, EntityState.Detached, false), Times.Once);
             }
         }
 
@@ -319,9 +415,9 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
 
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
-            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77, Name = "Beverages" });
-            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78, Name = "Foods" });
-            var entry3 = stateManager.GetOrCreateEntry(new Category { Id = 79, Name = "Stuff" });
+            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77, Name = "Beverages", PrincipalId = 777 });
+            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78, Name = "Foods", PrincipalId = 778 });
+            var entry3 = stateManager.GetOrCreateEntry(new Category { Id = 79, Name = "Stuff", PrincipalId = 779 });
 
             stateManager.StartTracking(entry1);
             stateManager.StartTracking(entry2);
@@ -365,8 +461,8 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var productId1 = new Guid("984ade3c-2f7b-4651-a351-642e92ab7146");
             var productId2 = new Guid("0edc9136-7eed-463b-9b97-bdb9648ab877");
 
-            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77 });
-            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78 });
+            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 });
+            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78, PrincipalId = 778 });
             var entry3 = stateManager.GetOrCreateEntry(new Product { Id = productId1 });
             var entry4 = stateManager.GetOrCreateEntry(new Product { Id = productId2 });
 
@@ -396,8 +492,8 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var productId1 = new Guid("984ade3c-2f7b-4651-a351-642e92ab7146");
             var productId2 = new Guid("0edc9136-7eed-463b-9b97-bdb9648ab877");
 
-            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77 });
-            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78 });
+            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 });
+            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78, PrincipalId = 778 });
             var entry3 = stateManager.GetOrCreateEntry(new Product { Id = productId1 });
             var entry4 = stateManager.GetOrCreateEntry(new Product { Id = productId2 });
 
@@ -429,8 +525,8 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var productId1 = new Guid("984ade3c-2f7b-4651-a351-642e92ab7146");
             var productId2 = new Guid("0edc9136-7eed-463b-9b97-bdb9648ab877");
 
-            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77 });
-            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78 });
+            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 });
+            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78, PrincipalId = 778 });
             var entry3 = stateManager.GetOrCreateEntry(new Product { Id = productId1 });
             var entry4 = stateManager.GetOrCreateEntry(new Product { Id = productId2 });
 
@@ -460,8 +556,8 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var productId1 = new Guid("984ade3c-2f7b-4651-a351-642e92ab7146");
             var productId2 = new Guid("0edc9136-7eed-463b-9b97-bdb9648ab877");
 
-            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77 });
-            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78 });
+            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 });
+            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78, PrincipalId = 778 });
             var entry3 = stateManager.GetOrCreateEntry(new Product { Id = productId1 });
             var entry4 = stateManager.GetOrCreateEntry(new Product { Id = productId2 });
 
@@ -493,8 +589,8 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var productId1 = new Guid("984ade3c-2f7b-4651-a351-642e92ab7146");
             var productId2 = new Guid("0edc9136-7eed-463b-9b97-bdb9648ab877");
 
-            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77 });
-            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78 });
+            var entry1 = stateManager.GetOrCreateEntry(new Category { Id = 77, PrincipalId = 777 });
+            var entry2 = stateManager.GetOrCreateEntry(new Category { Id = 78, PrincipalId = 778 });
             var entry3 = stateManager.GetOrCreateEntry(new Product { Id = productId1 });
             var entry4 = stateManager.GetOrCreateEntry(new Product { Id = productId2 });
 
@@ -525,7 +621,7 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             var categoryEntry1 = stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 1, PrincipalId = 77 }));
             var categoryEntry2 = stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 2, PrincipalId = 78 }));
             var categoryEntry3 = stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 3, PrincipalId = 79 }));
-            var categoryEntry4 = stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 4, PrincipalId = null }));
+            var categoryEntry4 = stateManager.StartTracking(stateManager.GetOrCreateEntry(new Category { Id = 4, PrincipalId = 0 }));
             var productEntry1 = stateManager.StartTracking(stateManager.GetOrCreateEntry(new Product { Id = Guid.NewGuid(), DependentId = 77 }));
             var productEntry2 = stateManager.StartTracking(stateManager.GetOrCreateEntry(new Product { Id = Guid.NewGuid(), DependentId = 77 }));
             var productEntry3 = stateManager.StartTracking(stateManager.GetOrCreateEntry(new Product { Id = Guid.NewGuid(), DependentId = 78 }));
@@ -546,6 +642,15 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             Assert.Empty(stateManager.GetDependents(categoryEntry4, fk).ToArray());
         }
 
+        [Fact] // Issue #743
+        public void Throws_when_instance_of_unmapped_derived_type_is_used()
+        {
+            var model = BuildModel();
+            var stateManager = CreateStateManager(model);
+            Assert.Equal(CoreStrings.EntityTypeNotFound(typeof(SpecialProduct).Name),
+                Assert.Throws<InvalidOperationException>(() => stateManager.GetOrCreateEntry(new SpecialProduct())).Message);
+        }
+
         private static IStateManager CreateStateManager(IModel model)
         {
             return TestHelpers.Instance.CreateContextServices(model).GetRequiredService<IStateManager>();
@@ -564,6 +669,10 @@ namespace Microsoft.Data.Entity.Tests.ChangeTracking.Internal
             public int? DependentId { get; set; }
             public string Name { get; set; }
             public decimal Price { get; set; }
+        }
+
+        private class SpecialProduct : Product
+        {
         }
 
         private class Dogegory

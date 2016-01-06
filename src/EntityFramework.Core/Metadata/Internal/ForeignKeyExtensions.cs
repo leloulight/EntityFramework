@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Utilities;
 
@@ -47,15 +47,15 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 yield return foreignKey.DependentToPrincipal;
             }
         }
-        
+
         public static IEnumerable<INavigation> FindNavigationsFrom(
             [NotNull] this IForeignKey foreignKey, [NotNull] IEntityType entityType)
         {
             Check.NotNull(foreignKey, nameof(foreignKey));
             Check.NotNull(entityType, nameof(entityType));
 
-            if (foreignKey.DeclaringEntityType != entityType
-                && foreignKey.PrincipalEntityType != entityType)
+            if ((foreignKey.DeclaringEntityType != entityType)
+                && (foreignKey.PrincipalEntityType != entityType))
             {
                 throw new ArgumentException(CoreStrings.EntityTypeNotInRelationshipStrict(
                     entityType.DisplayName(),
@@ -93,8 +93,8 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             Check.NotNull(foreignKey, nameof(foreignKey));
             Check.NotNull(entityType, nameof(entityType));
 
-            if (foreignKey.DeclaringEntityType != entityType
-                && foreignKey.PrincipalEntityType != entityType)
+            if ((foreignKey.DeclaringEntityType != entityType)
+                && (foreignKey.PrincipalEntityType != entityType))
             {
                 throw new ArgumentException(CoreStrings.EntityTypeNotInRelationshipStrict(
                     entityType.DisplayName(),
@@ -106,7 +106,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 ? foreignKey.GetNavigations()
                 : foreignKey.FindNavigations(foreignKey.PrincipalEntityType == entityType);
         }
-        
+
         public static IEnumerable<INavigation> FindNavigationsToInHierarchy(
             [NotNull] this IForeignKey foreignKey, [NotNull] IEntityType entityType)
         {
@@ -149,8 +149,8 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             Check.NotNull(foreignKey, nameof(foreignKey));
             Check.NotNull(entityType, nameof(entityType));
 
-            if (foreignKey.DeclaringEntityType != entityType
-                && foreignKey.PrincipalEntityType != entityType)
+            if ((foreignKey.DeclaringEntityType != entityType)
+                && (foreignKey.PrincipalEntityType != entityType))
             {
                 throw new ArgumentException(CoreStrings.EntityTypeNotInRelationshipStrict(
                     entityType.DisplayName(),
@@ -217,6 +217,25 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             return foreignKey.DeclaringEntityType.IsAssignableFrom(entityType)
                 ? foreignKey.DeclaringEntityType
                 : foreignKey.PrincipalEntityType;
+        }
+
+        public static IDependentKeyValueFactory<TKey> GetDependentKeyValueFactory<TKey>(
+            [NotNull] this IForeignKey foreignKey)
+        {
+            var factorySource = foreignKey as IDependentKeyValueFactorySource;
+
+            return factorySource != null
+                ? (IDependentKeyValueFactory<TKey>)factorySource.DependentKeyValueFactory
+                : new DependentKeyValueFactoryFactory().Create<TKey>(foreignKey);
+        }
+
+        public static IDependentsMap CreateDependentsMapFactory([NotNull] this IForeignKey foreignKey)
+        {
+            var factorySource = foreignKey as IDependentsMapFactorySource;
+
+            return factorySource != null
+                ? factorySource.DependentsMapFactory()
+                : new DependentsMapFactoryFactory().Create(foreignKey)();
         }
     }
 }

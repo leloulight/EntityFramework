@@ -4,7 +4,7 @@
 using System.Linq.Expressions;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
-using Microsoft.Data.Entity.Internal;
+using Microsoft.Data.Entity.Infrastructure.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Utilities;
 
@@ -43,12 +43,11 @@ namespace Microsoft.Data.Entity.Query.Internal
             }
 
             public override bool Equals(object obj)
-                => !ReferenceEquals(null, obj)
-                   && (obj is SqlServerCompiledQueryCacheKey && Equals((SqlServerCompiledQueryCacheKey)obj));
+                => !ReferenceEquals(null, obj) && obj is SqlServerCompiledQueryCacheKey && Equals((SqlServerCompiledQueryCacheKey)obj);
 
             private bool Equals(SqlServerCompiledQueryCacheKey other)
                 => _relationalCompiledQueryCacheKey.Equals(other._relationalCompiledQueryCacheKey)
-                   && _useRowNumberOffset == other._useRowNumberOffset;
+                   && (_useRowNumberOffset == other._useRowNumberOffset);
 
             public override int GetHashCode()
             {

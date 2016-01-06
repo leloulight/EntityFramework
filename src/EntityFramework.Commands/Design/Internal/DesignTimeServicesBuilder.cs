@@ -68,14 +68,7 @@ namespace Microsoft.Data.Entity.Design.Internal
                 .AddSingleton<CSharpMigrationOperationGenerator>()
                 .AddSingleton<CSharpSnapshotGenerator>()
                 .AddSingleton<MigrationsCodeGenerator, CSharpMigrationsGenerator>()
-                .AddSingleton<IFileService, FileSystemFileService>()
-                .AddSingleton<ModelUtilities>()
-                .AddSingleton<ReverseEngineeringGenerator>()
-                .AddSingleton<CSharpUtilities>()
-                .AddSingleton<ConfigurationFactory>()
-                .AddSingleton<DbContextWriter>()
-                .AddSingleton<EntityTypeWriter>()
-                .AddSingleton<CodeWriter, StringBuilderCodeWriter>();
+                .AddScaffolding();
 
         partial void ConfigureDnxServices(IServiceCollection services);
 
@@ -94,6 +87,7 @@ namespace Microsoft.Data.Entity.Design.Internal
                 .AddTransient<MigrationsScaffolder>()
                 .AddTransient(_ => contextServices.GetService<DbContext>())
                 .AddTransient(_ => contextServices.GetService<IDatabaseProviderServices>())
+                .AddTransient(_ => contextServices.GetService<IDbContextOptions>())
                 .AddTransient(_ => contextServices.GetService<IHistoryRepository>())
                 .AddTransient(_ => contextServices.GetService<ILoggerFactory>())
                 .AddTransient(_ => contextServices.GetService<IMigrationsAssembly>())

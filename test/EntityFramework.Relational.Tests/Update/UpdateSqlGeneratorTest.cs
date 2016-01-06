@@ -10,40 +10,33 @@ namespace Microsoft.Data.Entity.Tests
 {
     public class UpdateSqlGeneratorTest : UpdateSqlGeneratorTestBase
     {
-        protected override IUpdateSqlGenerator CreateSqlGenerator()
-        {
-            return new ConcreteSqlGenerator();
-        }
+        protected override IUpdateSqlGenerator CreateSqlGenerator() => new ConcreteSqlGenerator();
 
-        protected override string RowsAffected
-        {
-            get { return "provider_specific_rowcount()"; }
-        }
+        protected override string RowsAffected => "provider_specific_rowcount()";
 
-        protected override string Identity
-        {
-            get { return "provider_specific_identity()"; }
-        }
+        protected override string Identity => "provider_specific_identity()";
 
         private class ConcreteSqlGenerator : UpdateSqlGenerator
         {
             public ConcreteSqlGenerator()
-                :base(new RelationalSqlGenerator())
+                : base(new RelationalSqlGenerationHelper())
             {
             }
 
             protected override void AppendIdentityWhereCondition(StringBuilder commandStringBuilder, ColumnModification columnModification)
             {
                 commandStringBuilder
-                    .Append(SqlGenerator.DelimitIdentifier(columnModification.ColumnName))
+                    .Append(SqlGenerationHelper.DelimitIdentifier(columnModification.ColumnName))
                     .Append(" = ")
                     .Append("provider_specific_identity()");
             }
 
-            protected override void AppendSelectAffectedCountCommand(StringBuilder commandStringBuilder, string name, string schema)
+            protected override ResultSetMapping AppendSelectAffectedCountCommand(StringBuilder commandStringBuilder, string name, string schema, int commandPosition)
             {
                 commandStringBuilder
                     .Append("SELECT provider_specific_rowcount();" + Environment.NewLine);
+
+                return ResultSetMapping.LastInResultSet;
             }
 
             protected override void AppendRowsAffectedWhereCondition(StringBuilder commandStringBuilder, int expectedRowsAffected)

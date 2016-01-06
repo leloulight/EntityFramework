@@ -16,7 +16,7 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
             return modelBuilder;
         }
 
-        private void RemoveNavigationlessForeignKeys(InternalModelBuilder modelBuilder)
+        private static void RemoveNavigationlessForeignKeys(InternalModelBuilder modelBuilder)
         {
             foreach (var entityType in modelBuilder.Metadata.GetEntityTypes())
             {
@@ -25,8 +25,7 @@ namespace Microsoft.Data.Entity.Metadata.Conventions.Internal
                     if (foreignKey.PrincipalToDependent == null
                         && foreignKey.DependentToPrincipal == null)
                     {
-                        modelBuilder.Entity(entityType.Name, ConfigurationSource.Convention)
-                            .RemoveForeignKey(foreignKey, ConfigurationSource.DataAnnotation);
+                        entityType.Builder.RemoveForeignKey(foreignKey, ConfigurationSource.DataAnnotation);
                     }
                 }
             }

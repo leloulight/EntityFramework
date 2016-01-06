@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Microsoft.Data.Entity</RootNamespace>
     <AssemblyName>EntityFramework.Relational.Tests</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -26,7 +26,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -52,6 +52,7 @@
     <Compile Include="Migrations\MigrationSqlGeneratorTest.cs" />
     <Compile Include="Migrations\MigrationSqlGeneratorTestBase.cs" />
     <Compile Include="Storage\RelationalCommandTest.cs" />
+    <Compile Include="Storage\RelationalTransactionExtensionsTest.cs" />
     <Compile Include="Storage\RelationalTypeMappingTest.cs" />
     <Compile Include="Metadata\RelationalBuilderExtensionsTest.cs" />
     <Compile Include="RelationalConnectionTest.cs" />
@@ -62,9 +63,10 @@
     <Compile Include="RelationalOptionsExtensionTest.cs" />
     <Compile Include="SqlBatchBuilderTest.cs" />
     <Compile Include="Storage\RelationalSqlGeneratorTest.cs" />
-    <Compile Include="Storage\SqlCommandBuilderTest.cs" />
+    <Compile Include="Storage\RawSqlCommandBuilderTest.cs" />
     <Compile Include="Storage\SqlGeneratorTestBase.cs" />
     <Compile Include="Storage\TypedRelationalValueBufferFactoryFactoryTest.cs" />
+    <Compile Include="TestConventionalSetBuilder.cs" />
     <Compile Include="TestRelationalTypeMapper.cs" />
     <Compile Include="TestUtilities\FakeProvider\FakeRelationalTypeMapper.cs" />
     <Compile Include="TestUtilities\FakeProvider\FakeCommandExecutor.cs" />

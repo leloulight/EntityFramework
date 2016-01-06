@@ -9,11 +9,19 @@
     "EntityFramework.Relational": "7.0.0-rc1-final"
   },
   "frameworks": {
+<<<<<<< HEAD
     "net46": {},
     "dnx451": {},
     "dnxcore50": {
       "dependencies": {
         "System.Threading": "4.0.11-beta-23516"
+=======
+    "net451": { },
+    "dnx451": { },
+    "dnxcore50": {
+      "dependencies": {
+        "System.Threading": "4.0.11-*"
+>>>>>>> refs/remotes/aspnet/dev
       }
     }
   }

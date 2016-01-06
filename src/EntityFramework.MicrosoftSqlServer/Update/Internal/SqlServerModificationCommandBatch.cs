@@ -24,24 +24,27 @@ namespace Microsoft.Data.Entity.Update.Internal
 
         public SqlServerModificationCommandBatch(
             [NotNull] IRelationalCommandBuilderFactory commandBuilderFactory,
-            [NotNull] ISqlGenerator sqlGenerator,
+            [NotNull] ISqlGenerationHelper sqlGenerationHelper,
+            // ReSharper disable once SuggestBaseTypeForParameter
             [NotNull] ISqlServerUpdateSqlGenerator updateSqlGenerator,
             [NotNull] IRelationalValueBufferFactoryFactory valueBufferFactoryFactory,
             [CanBeNull] int? maxBatchSize)
             : base(
                 commandBuilderFactory,
-                sqlGenerator,
+                sqlGenerationHelper,
                 updateSqlGenerator,
                 valueBufferFactoryFactory)
         {
             if (maxBatchSize.HasValue
-                && maxBatchSize.Value <= 0)
+                && (maxBatchSize.Value <= 0))
             {
                 throw new ArgumentOutOfRangeException(nameof(maxBatchSize), RelationalStrings.InvalidMaxBatchSize);
             }
 
-            _maxBatchSize = Math.Min(maxBatchSize ?? Int32.MaxValue, MaxRowCount);
+            _maxBatchSize = Math.Min(maxBatchSize ?? int.MaxValue, MaxRowCount);
         }
+
+        protected new virtual ISqlServerUpdateSqlGenerator UpdateSqlGenerator => (ISqlServerUpdateSqlGenerator)base.UpdateSqlGenerator;
 
         protected override bool CanAddCommand(ModificationCommand modificationCommand)
         {
@@ -79,7 +82,7 @@ namespace Microsoft.Data.Entity.Update.Internal
             return true;
         }
 
-        private int CountParameters(ModificationCommand modificationCommand)
+        private static int CountParameters(ModificationCommand modificationCommand)
         {
             var parameterCount = 0;
             foreach (var columnModification in modificationCommand.ColumnModifications)
@@ -115,13 +118,16 @@ namespace Microsoft.Data.Entity.Update.Internal
             }
 
             var stringBuilder = new StringBuilder();
-            var grouping = ((ISqlServerUpdateSqlGenerator)UpdateSqlGenerator).AppendBulkInsertOperation(stringBuilder, _bulkInsertCommands);
+            var resultSetMapping = UpdateSqlGenerator.AppendBulkInsertOperation(stringBuilder, _bulkInsertCommands, lastIndex);
             for (var i = lastIndex - _bulkInsertCommands.Count; i < lastIndex; i++)
             {
-                ResultSetEnds[i] = grouping == SqlServerUpdateSqlGenerator.ResultsGrouping.OneCommandPerResultSet;
+                CommandResultSet[i] = resultSetMapping;
             }
 
-            ResultSetEnds[lastIndex - 1] = true;
+            if (resultSetMapping != ResultSetMapping.NoResultSet)
+            {
+                CommandResultSet[lastIndex - 1] = ResultSetMapping.LastInResultSet;
+            }
 
             return stringBuilder.ToString();
         }
@@ -132,7 +138,7 @@ namespace Microsoft.Data.Entity.Update.Internal
 
             if (newModificationCommand.EntityState == EntityState.Added)
             {
-                if (_bulkInsertCommands.Count > 0
+                if ((_bulkInsertCommands.Count > 0)
                     && !CanBeInsertedInSameStatement(_bulkInsertCommands[0], newModificationCommand))
                 {
                     CachedCommandText.Append(GetBulkInsertCommandText(commandPosition));
@@ -151,7 +157,7 @@ namespace Microsoft.Data.Entity.Update.Internal
             }
         }
 
-        private bool CanBeInsertedInSameStatement(ModificationCommand firstCommand, ModificationCommand secondCommand)
+        private static bool CanBeInsertedInSameStatement(ModificationCommand firstCommand, ModificationCommand secondCommand)
             => string.Equals(firstCommand.TableName, secondCommand.TableName, StringComparison.Ordinal)
                && string.Equals(firstCommand.Schema, secondCommand.Schema, StringComparison.Ordinal)
                && firstCommand.ColumnModifications.Where(o => o.IsWrite).Select(o => o.ColumnName).SequenceEqual(

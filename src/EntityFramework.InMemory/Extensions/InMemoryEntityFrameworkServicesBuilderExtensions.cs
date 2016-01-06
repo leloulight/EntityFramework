@@ -30,10 +30,12 @@ namespace Microsoft.Extensions.DependencyInjection
             service.TryAdd(new ServiceCollection()
                 .AddSingleton<InMemoryValueGeneratorCache>()
                 .AddSingleton<IInMemoryStore, InMemoryStore>()
+                .AddSingleton<IInMemoryTableFactory, InMemoryTableFactory>()
                 .AddSingleton<InMemoryModelSource>()
                 .AddScoped<InMemoryValueGeneratorSelector>()
                 .AddScoped<InMemoryDatabaseProviderServices>()
                 .AddScoped<IInMemoryDatabase, InMemoryDatabase>()
+                .AddScoped<InMemoryTransactionManager>()
                 .AddScoped<InMemoryDatabaseCreator>()
                 .AddQuery());
 

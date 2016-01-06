@@ -42,7 +42,7 @@ namespace Microsoft.Data.Entity.Metadata.Builders
 
         /// <summary>
         ///     Creates a new builder based on the provided internal builder. This can be overridden by derived builders
-        ///     so that logic inherited from this base class will create instances of the derived builder. 
+        ///     so that logic inherited from this base class will create instances of the derived builder.
         /// </summary>
         /// <param name="builder"> The internal builder to create the new builder from. </param>
         /// <returns> The newly created builder. </returns>
@@ -214,6 +214,7 @@ namespace Microsoft.Data.Entity.Metadata.Builders
             [CanBeNull] string navigationName = null)
         {
             Check.NotNull(relatedType, nameof(relatedType));
+            Check.NullButNotEmpty(navigationName, nameof(navigationName));
 
             var relatedEntityType = Builder.ModelBuilder.Entity(relatedType, ConfigurationSource.Explicit).Metadata;
 
@@ -248,6 +249,7 @@ namespace Microsoft.Data.Entity.Metadata.Builders
             [CanBeNull] string navigationName = null)
         {
             Check.NotEmpty(relatedTypeName, nameof(relatedTypeName));
+            Check.NullButNotEmpty(navigationName, nameof(navigationName));
 
             var relatedEntityType = Builder.ModelBuilder.Entity(relatedTypeName, ConfigurationSource.Explicit).Metadata;
 
@@ -281,6 +283,7 @@ namespace Microsoft.Data.Entity.Metadata.Builders
             [CanBeNull] string navigationName = null)
         {
             Check.NotNull(relatedType, nameof(relatedType));
+            Check.NullButNotEmpty(navigationName, nameof(navigationName));
 
             var relatedEntityType = Builder.ModelBuilder.Entity(relatedType, ConfigurationSource.Explicit).Metadata;
 
@@ -311,6 +314,7 @@ namespace Microsoft.Data.Entity.Metadata.Builders
             [CanBeNull] string navigationName = null)
         {
             Check.NotEmpty(relatedTypeName, nameof(relatedTypeName));
+            Check.NullButNotEmpty(navigationName, nameof(navigationName));
 
             var relatedEntityType = Builder.ModelBuilder.Entity(relatedTypeName, ConfigurationSource.Explicit).Metadata;
 
@@ -321,9 +325,9 @@ namespace Microsoft.Data.Entity.Metadata.Builders
         ///     Creates a relationship builder for a relationship that has a reference navigation property on this entity.
         /// </summary>
         /// <param name="relatedEntityType"> The entity type that the relationship targets. </param>
-        /// <param name="navigationName"> 
-        ///     The name of the navigation property on this entity. If null is passed, then a relationship with no navigation 
-        ///     property is created. 
+        /// <param name="navigationName">
+        ///     The name of the navigation property on this entity. If null is passed, then a relationship with no navigation
+        ///     property is created.
         /// </param>
         /// <returns> The newly created builder. </returns>
         protected virtual InternalRelationshipBuilder ReferenceBuilder(
@@ -344,9 +348,9 @@ namespace Microsoft.Data.Entity.Metadata.Builders
         ///     Creates a relationship builder for a relationship that has a collection navigation property on this entity.
         /// </summary>
         /// <param name="relatedEntityType"> The entity type that the relationship targets. </param>
-        /// <param name="navigationName"> 
-        ///     The name of the navigation property on this entity. If null is passed, then a relationship with no navigation 
-        ///     property is created. 
+        /// <param name="navigationName">
+        ///     The name of the navigation property on this entity. If null is passed, then a relationship with no navigation
+        ///     property is created.
         /// </param>
         /// <returns> The newly created builder. </returns>
         protected virtual InternalRelationshipBuilder CollectionBuilder(
@@ -370,7 +374,7 @@ namespace Microsoft.Data.Entity.Metadata.Builders
             Check.NotEmpty(propertyName, nameof(propertyName));
 
             var builder = Builder.Property(propertyName, ConfigurationSource.Explicit);
-            var clrTypeSet = builder.ClrType(propertyType, ConfigurationSource.Explicit);
+            var clrTypeSet = builder.HasClrType(propertyType, ConfigurationSource.Explicit);
             Debug.Assert(clrTypeSet);
             return builder;
         }

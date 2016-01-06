@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Microsoft.Data.Entity.Relational.Design</RootNamespace>
     <AssemblyName>EntityFramework.Relational.Design.Tests</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -26,7 +26,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -36,13 +36,15 @@
     <Compile Include="CSharpUniqueNamerTest.cs" />
     <Compile Include="NullLogger.cs" />
     <Compile Include="RelationalDatabaseModelFactoryTest.cs" />
-    <Compile Include="ReverseEngineering\ReverseEngineeringConfigurationTests.cs" />
     <Compile Include="ScaffoldingMetadataExtenstionsTest.cs" />
-    <Compile Include="ReverseEngineering\ReverseEngineeringGeneratorTests.cs" />
     <Compile Include="TestLogger.cs" />
     <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\EntityFramework.Commands\EntityFramework.Commands.csproj">
+      <Project>{10ca97eb-e724-4f08-86af-f301f2b0bfff}</Project>
+      <Name>EntityFramework.Commands</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\EntityFramework.Core\EntityFramework.Core.csproj">
       <Project>{71415cec-8111-4c73-8751-512d22f10602}</Project>
       <Name>EntityFramework.Core</Name>
@@ -63,7 +65,6 @@
   <ItemGroup>
     <Reference Include="System" />
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.

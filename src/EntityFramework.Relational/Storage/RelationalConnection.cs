@@ -6,11 +6,15 @@ using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+#if NET451 || DNX451
+using System.Transactions;
+#endif
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Utilities;
 using Microsoft.Extensions.Logging;
+using IsolationLevel = System.Data.IsolationLevel;
 
 namespace Microsoft.Data.Entity.Storage
 {
@@ -68,7 +72,7 @@ namespace Microsoft.Data.Entity.Storage
 
         public virtual DbConnection DbConnection => _connection.Value;
 
-        public virtual IRelationalTransaction Transaction { get; [param: NotNull] protected set; }
+        public virtual IDbContextTransaction CurrentTransaction { get; [param: NotNull] protected set; }
 
         public virtual int? CommandTimeout
         {
@@ -76,7 +80,7 @@ namespace Microsoft.Data.Entity.Storage
             set
             {
                 if (value.HasValue
-                    && value < 0)
+                    && (value < 0))
                 {
                     throw new ArgumentException(RelationalStrings.InvalidCommandTimeout);
                 }
@@ -85,19 +89,17 @@ namespace Microsoft.Data.Entity.Storage
             }
         }
 
-        public virtual DbTransaction DbTransaction => Transaction?.GetInfrastructure();
+        [NotNull]
+        public virtual IDbContextTransaction BeginTransaction() => BeginTransaction(IsolationLevel.Unspecified);
 
         [NotNull]
-        public virtual IRelationalTransaction BeginTransaction() => BeginTransaction(IsolationLevel.Unspecified);
+        public virtual async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default(CancellationToken))
+            => await BeginTransactionAsync(IsolationLevel.Unspecified, cancellationToken);
 
         [NotNull]
-        public virtual Task<IRelationalTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default(CancellationToken))
-            => BeginTransactionAsync(IsolationLevel.Unspecified, cancellationToken);
-
-        [NotNull]
-        public virtual IRelationalTransaction BeginTransaction(IsolationLevel isolationLevel)
+        public virtual IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel)
         {
-            if (Transaction != null)
+            if (CurrentTransaction != null)
             {
                 throw new InvalidOperationException(RelationalStrings.TransactionAlreadyStarted);
             }
@@ -108,11 +110,11 @@ namespace Microsoft.Data.Entity.Storage
         }
 
         [NotNull]
-        public virtual async Task<IRelationalTransaction> BeginTransactionAsync(
+        public virtual async Task<IDbContextTransaction> BeginTransactionAsync(
             IsolationLevel isolationLevel,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (Transaction != null)
+            if (CurrentTransaction != null)
             {
                 throw new InvalidOperationException(RelationalStrings.TransactionAlreadyStarted);
             }
@@ -122,61 +124,89 @@ namespace Microsoft.Data.Entity.Storage
             return BeginTransactionWithNoPreconditions(isolationLevel);
         }
 
-        private IRelationalTransaction BeginTransactionWithNoPreconditions(IsolationLevel isolationLevel)
+        private IDbContextTransaction BeginTransactionWithNoPreconditions(IsolationLevel isolationLevel)
         {
             Check.NotNull(_logger, nameof(_logger));
 
-            _logger.LogVerbose(
+            _logger.LogDebug(
                 RelationalLoggingEventId.BeginningTransaction,
                 isolationLevel,
                 il => RelationalStrings.RelationalLoggerBeginningTransaction(il.ToString("G")));
 
-            Transaction
+            CurrentTransaction
                 = new RelationalTransaction(
                     this,
                     DbConnection.BeginTransaction(isolationLevel),
-                     _logger,
+                    _logger,
                     transactionOwned: true);
 
-            return Transaction;
+            return CurrentTransaction;
         }
 
-        public virtual IRelationalTransaction UseTransaction(DbTransaction transaction)
+        public virtual IDbContextTransaction UseTransaction(DbTransaction transaction)
         {
             if (transaction == null)
             {
-                if (Transaction != null)
+                if (CurrentTransaction != null)
                 {
-                    Transaction = null;
+                    CurrentTransaction = null;
 
                     Close();
                 }
             }
             else
             {
-                if (Transaction != null)
+                if (CurrentTransaction != null)
                 {
                     throw new InvalidOperationException(RelationalStrings.TransactionAlreadyStarted);
                 }
 
                 Open();
 
-                Transaction = new RelationalTransaction(this, transaction, _logger, transactionOwned: false);
+                CurrentTransaction = new RelationalTransaction(this, transaction, _logger, transactionOwned: false);
             }
 
-            return Transaction;
+            return CurrentTransaction;
+        }
+
+        public virtual void CommitTransaction()
+        {
+            if (CurrentTransaction == null)
+            {
+                throw new InvalidOperationException(RelationalStrings.NoActiveTransaction);
+            }
+
+            CurrentTransaction.Commit();
+        }
+
+        public virtual void RollbackTransaction()
+        {
+            if (CurrentTransaction == null)
+            {
+                throw new InvalidOperationException(RelationalStrings.NoActiveTransaction);
+            }
+
+            CurrentTransaction.Rollback();
         }
 
         public virtual void Open()
         {
             CheckForAmbientTransactions();
 
-            if (_openedCount == 0 && _connection.Value.State != ConnectionState.Open)
+            if ((_openedCount == 0)
+                && (_connection.Value.State != ConnectionState.Open))
             {
-                _logger.LogVerbose(
+                _logger.LogDebug(
                     RelationalLoggingEventId.OpeningConnection,
-                    ConnectionString,
-                    RelationalStrings.RelationalLoggerOpeningConnection);
+                    new
+                    {
+                        _connection.Value.Database,
+                        _connection.Value.DataSource
+                    },
+                    state =>
+                        RelationalStrings.RelationalLoggerOpeningConnection(
+                            state.Database,
+                            state.DataSource));
 
                 _connection.Value.Open();
                 _openedInternally = true;
@@ -189,12 +219,20 @@ namespace Microsoft.Data.Entity.Storage
         {
             CheckForAmbientTransactions();
 
-            if (_openedCount == 0 && _connection.Value.State != ConnectionState.Open)
+            if ((_openedCount == 0)
+                && (_connection.Value.State != ConnectionState.Open))
             {
-                _logger.LogVerbose(
+                _logger.LogDebug(
                     RelationalLoggingEventId.OpeningConnection,
-                    ConnectionString,
-                    RelationalStrings.RelationalLoggerOpeningConnection);
+                    new
+                    {
+                        _connection.Value.Database,
+                        _connection.Value.DataSource
+                    },
+                    state =>
+                        RelationalStrings.RelationalLoggerOpeningConnection(
+                            state.Database,
+                            state.DataSource));
 
                 await _connection.Value.OpenAsync(cancellationToken);
                 _openedInternally = true;
@@ -207,7 +245,7 @@ namespace Microsoft.Data.Entity.Storage
         {
 #if NET451 || DNX451
             if (_throwOnAmbientTransaction
-                && System.Transactions.Transaction.Current != null)
+                && (Transaction.Current != null))
             {
                 throw new InvalidOperationException(RelationalStrings.AmbientTransaction);
             }
@@ -219,14 +257,21 @@ namespace Microsoft.Data.Entity.Storage
             // TODO: Consider how to handle open/closing to make sure that a connection that is passed in
             // as open is never erroneously closed without placing undue burdon on users of the connection.
 
-            if (_openedCount > 0
-                && --_openedCount == 0
+            if ((_openedCount > 0)
+                && (--_openedCount == 0)
                 && _openedInternally)
             {
-                _logger.LogVerbose(
+                _logger.LogDebug(
                     RelationalLoggingEventId.ClosingConnection,
-                    ConnectionString,
-                    RelationalStrings.RelationalLoggerClosingConnection);
+                    new
+                    {
+                        _connection.Value.Database,
+                        _connection.Value.DataSource
+                    },
+                    state =>
+                    RelationalStrings.RelationalLoggerClosingConnection(
+                        state.Database,
+                        state.DataSource));
 
                 _connection.Value.Close();
                 _openedInternally = false;
@@ -237,7 +282,7 @@ namespace Microsoft.Data.Entity.Storage
 
         public virtual void Dispose()
         {
-            Transaction?.Dispose();
+            CurrentTransaction?.Dispose();
 
             if (_connectionOwned && _connection.HasValue)
             {

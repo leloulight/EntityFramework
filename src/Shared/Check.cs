@@ -85,7 +85,7 @@ namespace Microsoft.Data.Entity.Utilities
         public static string NullButNotEmpty(string value, [InvokerParameterName] [NotNull] string parameterName)
         {
             if (!ReferenceEquals(value, null)
-                && value.Length == 0)
+                && (value.Length == 0))
             {
                 NotEmpty(parameterName, nameof(parameterName));
 
@@ -110,26 +110,13 @@ namespace Microsoft.Data.Entity.Utilities
             return value;
         }
 
-        public static T IsDefined<T>(T value, [InvokerParameterName] [NotNull] string parameterName)
-            where T : struct
-        {
-            if (!Enum.IsDefined(typeof(T), value))
-            {
-                NotEmpty(parameterName, nameof(parameterName));
-
-                throw new ArgumentException(CoreStrings.InvalidEnumValue(parameterName, typeof(T)));
-            }
-
-            return value;
-        }
-
         public static Type ValidEntityType(Type value, [InvokerParameterName] [NotNull] string parameterName)
         {
             if (!value.GetTypeInfo().IsClass)
             {
                 NotEmpty(parameterName, nameof(parameterName));
 
-                throw new ArgumentException(CoreStrings.InvalidEntityType(parameterName, value));
+                throw new ArgumentException(CoreStrings.InvalidEntityType(value, parameterName));
             }
 
             return value;

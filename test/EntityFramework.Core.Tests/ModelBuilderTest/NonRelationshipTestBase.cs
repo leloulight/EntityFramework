@@ -3,12 +3,14 @@
 
 using System;
 using System.Linq;
+using System.Reflection;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Internal;
 using Xunit;
 
 // ReSharper disable once CheckNamespace
+
 namespace Microsoft.Data.Entity.Tests
 {
     public abstract partial class ModelBuilderTest
@@ -141,9 +143,10 @@ namespace Microsoft.Data.Entity.Tests
             {
                 var modelBuilder = CreateModelBuilder();
                 modelBuilder.Entity<Customer>().Property<int>(Customer.IdProperty.Name);
+                modelBuilder.Entity<Customer>().HasAlternateKey(b => b.Name);
 
                 var entity = modelBuilder.Model.FindEntityType(typeof(Customer));
-                var key = entity.AddKey(entity.GetOrAddProperty(Customer.NameProperty));
+                var key = entity.FindKey(entity.FindProperty(Customer.NameProperty));
 
                 modelBuilder.Entity<Customer>().HasKey(b => b.Name);
 
@@ -201,6 +204,21 @@ namespace Microsoft.Data.Entity.Tests
 
                 Assert.Equal(1, entity.GetKeys().Count(key => key != entity.FindPrimaryKey()));
                 Assert.Equal(Customer.AlternateKeyProperty.Name, entity.GetKeys().First(key => key != entity.FindPrimaryKey()).Properties.First().Name);
+            }
+
+            [Fact]
+            public virtual void Setting_alternate_key_makes_properties_required()
+            {
+                var modelBuilder = CreateModelBuilder();
+                var entityBuilder = modelBuilder.Entity<Customer>();
+
+                var entity = modelBuilder.Model.FindEntityType(typeof(Customer));
+                var alternateKeyProperty = entity.FindProperty(nameof(Customer.Name));
+                Assert.True(alternateKeyProperty.IsNullable);
+
+                entityBuilder.HasAlternateKey(e => e.Name);
+
+                Assert.False(alternateKeyProperty.IsNullable);
             }
 
             [Fact]
@@ -687,6 +705,31 @@ namespace Microsoft.Data.Entity.Tests
 
                 Assert.NotNull(entityType.FindPrimaryKey());
                 AssertEqual(new[] { "Id" }, entityType.FindPrimaryKey().Properties.Select(p => p.Name));
+            }
+
+            [Fact]
+            public virtual void Can_ignore_property_preserving_explicit_interface_implementation()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Entity<EntityBase>().Ignore(e => e.Target);
+
+                Assert.Equal(
+                    typeof(EntityBase).GetRuntimeProperties().First(p => p != EntityBase.TargetProperty).Name,
+                    modelBuilder.Model.FindEntityType(typeof(EntityBase)).GetProperties().Single().Name);
+            }
+
+            [Fact]
+            public virtual void Throws_for_shadow_key()
+            {
+                var modelBuilder = CreateModelBuilder();
+                var entityType = (EntityType)modelBuilder.Entity<SelfRef>().Metadata;
+                var shadowProperty = entityType.AddProperty("ShadowProperty", ConfigurationSource.Convention);
+                shadowProperty.IsNullable = false;
+                entityType.AddKey(shadowProperty);
+
+                Assert.Equal(
+                    CoreStrings.ShadowKey("{'ShadowProperty'}", typeof(SelfRef).FullName, "{'ShadowProperty'}"),
+                    Assert.Throws<InvalidOperationException>(() => modelBuilder.Validate()).Message);
             }
         }
     }

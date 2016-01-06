@@ -3,11 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
+using Microsoft.Data.Entity.Query.ExpressionVisitors.Internal;
 using Microsoft.Data.Entity.Query.Internal;
 using Microsoft.Data.Entity.Storage;
 
@@ -24,13 +26,21 @@ namespace Microsoft.Data.Entity.Query
         [UsedImplicitly]
         internal static IEnumerable<T> _ShapedQuery<T>(
             QueryContext queryContext,
-            CommandBuilder commandBuilder,
-            Func<ValueBuffer, T> shaper)
-            => new QueryingEnumerable(
-                (RelationalQueryContext)queryContext,
-                commandBuilder,
-                queryIndex: null)
-                .Select(shaper); // TODO: Pass shaper to underlying enumerable
+            ShaperCommandContext shaperCommandContext,
+            IShaper<T> shaper)
+        {
+            // ReSharper disable once LoopCanBeConvertedToQuery
+            foreach (var valueBuffer
+                in new QueryingEnumerable(
+                    (RelationalQueryContext)queryContext,
+                    shaperCommandContext,
+                    queryIndex: null))
+            {
+                yield return shaper.Shape(queryContext, valueBuffer);
+            }
+        }
+
+        // TODO: Pass shaper to underlying enumerable
 
         public virtual MethodInfo QueryMethod => _queryMethodInfo;
 
@@ -41,11 +51,11 @@ namespace Microsoft.Data.Entity.Query
         [UsedImplicitly]
         private static IEnumerable<ValueBuffer> _Query(
             QueryContext queryContext,
-            CommandBuilder commandBuilder,
+            ShaperCommandContext shaperCommandContext,
             int? queryIndex)
             => new QueryingEnumerable(
-                ((RelationalQueryContext)queryContext),
-                commandBuilder,
+                (RelationalQueryContext)queryContext,
+                shaperCommandContext,
                 queryIndex);
 
         public virtual MethodInfo GetResultMethod => _getResultMethodInfo;
@@ -70,6 +80,51 @@ namespace Microsoft.Data.Entity.Query
             return default(TResult);
         }
 
+        public virtual MethodInfo GroupByMethod => _groupByMethodInfo;
+
+        private static readonly MethodInfo _groupByMethodInfo
+            = typeof(QueryMethodProvider)
+                .GetTypeInfo().GetDeclaredMethod(nameof(_GroupBy));
+
+        [UsedImplicitly]
+        private static IEnumerable<IGrouping<TKey, TElement>> _GroupBy<TSource, TKey, TElement>(
+            IEnumerable<TSource> source,
+            Func<TSource, TKey> keySelector,
+            Func<TSource, TElement> elementSelector)
+        {
+            using (var sourceEnumerator = source.GetEnumerator())
+            {
+                var comparer = EqualityComparer<TKey>.Default;
+                var hasNext = sourceEnumerator.MoveNext();
+
+                while (hasNext)
+                {
+                    var currentKey = keySelector(sourceEnumerator.Current);
+                    var element = elementSelector(sourceEnumerator.Current);
+                    var grouping = new Grouping<TKey, TElement>(currentKey) { element };
+
+                    while (true)
+                    {
+                        hasNext = sourceEnumerator.MoveNext();
+
+                        if (!hasNext)
+                        {
+                            break;
+                        }
+
+                        if (!comparer.Equals(currentKey, keySelector(sourceEnumerator.Current)))
+                        {
+                            break;
+                        }
+
+                        grouping.Add(elementSelector(sourceEnumerator.Current));
+                    }
+
+                    yield return grouping;
+                }
+            }
+        }
+
         public virtual MethodInfo GroupJoinMethod => _groupJoinMethodInfo;
 
         private static readonly MethodInfo _groupJoinMethodInfo
@@ -78,9 +133,10 @@ namespace Microsoft.Data.Entity.Query
 
         [UsedImplicitly]
         internal static IEnumerable<TResult> _GroupJoin<TOuter, TInner, TKey, TResult>(
+            QueryContext queryContext,
             IEnumerable<ValueBuffer> source,
-            Func<ValueBuffer, TOuter> outerFactory,
-            Func<ValueBuffer, TInner> innerFactory,
+            IShaper<TOuter> outerShaper,
+            IShaper<TInner> innerShaper,
             Func<TInner, TKey> innerKeySelector,
             Func<TOuter, IEnumerable<TInner>, TResult> resultSelector)
         {
@@ -91,8 +147,8 @@ namespace Microsoft.Data.Entity.Query
 
                 while (hasNext)
                 {
-                    var outer = outerFactory(sourceEnumerator.Current);
-                    var inner = innerFactory(sourceEnumerator.Current);
+                    var outer = outerShaper.Shape(queryContext, sourceEnumerator.Current);
+                    var inner = innerShaper.Shape(queryContext, sourceEnumerator.Current);
                     var inners = new List<TInner>();
 
                     if (inner == null)
@@ -116,7 +172,7 @@ namespace Microsoft.Data.Entity.Query
                                 break;
                             }
 
-                            inner = innerFactory(sourceEnumerator.Current);
+                            inner = innerShaper.Shape(queryContext, sourceEnumerator.Current);
 
                             if (inner == null)
                             {
@@ -166,27 +222,29 @@ namespace Microsoft.Data.Entity.Query
                     .Select<IIncludeRelatedValuesStrategy, RelatedEntitiesLoader>(s => s.GetRelatedValues)
                     .ToArray();
 
-            return innerResults
-                .Select(r =>
-                    {
-                        queryContext.QueryBuffer
-                            .Include(
-                                entityAccessor == null ? r : entityAccessor(r), // TODO: Compile time?
-                                navigationPath,
-                                relatedEntitiesLoaders,
-                                querySourceRequiresTracking);
+            try
+            {
+                foreach (var innerResult in innerResults)
+                {
+                    queryContext.QueryBuffer
+                        .Include(
+                            entityAccessor == null ? innerResult : entityAccessor(innerResult), // TODO: Compile time?
+                            navigationPath,
+                            relatedEntitiesLoaders,
+                            querySourceRequiresTracking);
 
-                        return r;
-                    })
-                .Finally(() =>
-                    {
-                        foreach (var includeRelatedValuesStrategy in includeRelatedValuesStrategies)
-                        {
-                            includeRelatedValuesStrategy.Dispose();
-                        }
+                    yield return innerResult;
+                }
+            }
+            finally // Need this to run even if innerResults is not fully consumed.
+            {
+                foreach (var includeRelatedValuesStrategy in includeRelatedValuesStrategies)
+                {
+                    includeRelatedValuesStrategy.Dispose();
+                }
 
-                        queryContext.EndIncludeScope();
-                    });
+                queryContext.EndIncludeScope();
+            }
         }
 
         public virtual MethodInfo CreateReferenceIncludeRelatedValuesStrategyMethod
@@ -224,7 +282,7 @@ namespace Microsoft.Data.Entity.Query
                 _materializer = materializer;
             }
 
-            public IEnumerable<EntityLoadInfo> GetRelatedValues(IKeyValue keyValue, Func<ValueBuffer, IKeyValue> keyFactory)
+            public IEnumerable<EntityLoadInfo> GetRelatedValues(IIncludeKeyComparer keyComparer)
             {
                 var valueBuffer = _queryContext.GetIncludeValueBuffer(_queryIndex).WithOffset(_valueBufferOffset);
 
@@ -262,11 +320,11 @@ namespace Microsoft.Data.Entity.Query
                     = new IncludeCollectionIterator(relatedValueBuffers.GetEnumerator());
             }
 
-            public IEnumerable<EntityLoadInfo> GetRelatedValues(IKeyValue keyValue, Func<ValueBuffer, IKeyValue> keyFactory)
+            public IEnumerable<EntityLoadInfo> GetRelatedValues(IIncludeKeyComparer keyComparer)
             {
                 return
                     _includeCollectionIterator
-                        .GetRelatedValues(keyValue, keyFactory)
+                        .GetRelatedValues(keyComparer)
                         .Select(vr => new EntityLoadInfo(vr, _materializer));
             }
 

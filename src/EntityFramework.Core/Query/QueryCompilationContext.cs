@@ -8,9 +8,11 @@ using System.Linq.Expressions;
 using System.Reflection;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Metadata;
-using Microsoft.Data.Entity.Query.Annotations;
+using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Query.ExpressionVisitors;
 using Microsoft.Data.Entity.Query.Internal;
+using Microsoft.Data.Entity.Query.ResultOperators;
+using Microsoft.Data.Entity.Query.ResultOperators.Internal;
 using Microsoft.Data.Entity.Utilities;
 using Microsoft.Extensions.Logging;
 using Remotion.Linq;
@@ -24,11 +26,12 @@ namespace Microsoft.Data.Entity.Query
         private readonly IRequiresMaterializationExpressionVisitorFactory _requiresMaterializationExpressionVisitorFactory;
         private readonly IEntityQueryModelVisitorFactory _entityQueryModelVisitorFactory;
 
-        private IReadOnlyCollection<QueryAnnotationBase> _queryAnnotations;
+        private IReadOnlyCollection<IQueryAnnotation> _queryAnnotations;
         private IDictionary<IQuerySource, List<IReadOnlyList<INavigation>>> _trackableIncludes;
         private ISet<IQuerySource> _querySourcesRequiringMaterialization;
 
         public QueryCompilationContext(
+            [NotNull] IModel model,
             [NotNull] ILogger logger,
             [NotNull] IEntityQueryModelVisitorFactory entityQueryModelVisitorFactory,
             [NotNull] IRequiresMaterializationExpressionVisitorFactory requiresMaterializationExpressionVisitorFactory,
@@ -36,11 +39,13 @@ namespace Microsoft.Data.Entity.Query
             [NotNull] Type contextType,
             bool trackQueryResults)
         {
+            Check.NotNull(model, nameof(model));
             Check.NotNull(entityQueryModelVisitorFactory, nameof(entityQueryModelVisitorFactory));
             Check.NotNull(requiresMaterializationExpressionVisitorFactory, nameof(requiresMaterializationExpressionVisitorFactory));
             Check.NotNull(linqOperatorProvider, nameof(linqOperatorProvider));
             Check.NotNull(contextType, nameof(contextType));
 
+            Model = model;
             Logger = logger;
 
             _entityQueryModelVisitorFactory = entityQueryModelVisitorFactory;
@@ -51,6 +56,7 @@ namespace Microsoft.Data.Entity.Query
             TrackQueryResults = trackQueryResults;
         }
 
+        public virtual IModel Model { get; }
         public virtual ILogger Logger { get; }
         public virtual ILinqOperatorProvider LinqOperatorProvider { get; }
 
@@ -59,7 +65,7 @@ namespace Microsoft.Data.Entity.Query
 
         public virtual QuerySourceMapping QuerySourceMapping { get; } = new QuerySourceMapping();
 
-        public virtual IReadOnlyCollection<QueryAnnotationBase> QueryAnnotations
+        public virtual IReadOnlyCollection<IQueryAnnotation> QueryAnnotations
         {
             get { return _queryAnnotations; }
             [param: NotNull]
@@ -77,14 +83,20 @@ namespace Microsoft.Data.Entity.Query
             {
                 var lastTrackingModifier
                     = QueryAnnotations
-                        .OfType<QueryAnnotation>()
-                        .LastOrDefault(
-                            qa => qa.IsCallTo(EntityFrameworkQueryableExtensions.AsNoTrackingMethodInfo)
-                                  || qa.IsCallTo(EntityFrameworkQueryableExtensions.AsTrackingMethodInfo));
+                        .OfType<TrackingResultOperator>()
+                        .LastOrDefault();
 
-                return lastTrackingModifier
-                    ?.IsCallTo(EntityFrameworkQueryableExtensions.AsTrackingMethodInfo)
-                       ?? TrackQueryResults;
+                return lastTrackingModifier?.IsTracking ?? TrackQueryResults;
+            }
+        }
+
+        public virtual bool IsIncludeQuery
+        {
+            get
+            {
+                return QueryAnnotations
+                    .OfType<IncludeResultOperator>()
+                    .Any();
             }
         }
 
@@ -95,20 +107,54 @@ namespace Microsoft.Data.Entity.Query
             Check.NotNull(queryModel, nameof(queryModel));
 
             IsQueryBufferRequired
-                = IsTrackingQuery
-                  || QueryAnnotations.OfType<IncludeQueryAnnotation>().Any()
-                  || new ShadowAccessFindingExpressionVisitor().AnyShadowAccess(queryModel);
+                = QueryAnnotations.OfType<IncludeResultOperator>().Any()
+                  || new RequiresBufferingExpressionVisitor(Model).RequiresBuffering(queryModel);
         }
 
-        private class ShadowAccessFindingExpressionVisitor : ExpressionVisitorBase
+        private class RequiresBufferingExpressionVisitor : ExpressionVisitorBase
         {
-            private bool _anyShadowAccess;
+            private readonly IModel _model;
 
-            public bool AnyShadowAccess(QueryModel queryModel)
+            private int _referencedEntityTypes;
+            private bool _requiresBuffering;
+
+            public RequiresBufferingExpressionVisitor(IModel model)
+            {
+                _model = model;
+            }
+
+            public bool RequiresBuffering(QueryModel queryModel)
             {
                 queryModel.TransformExpressions(Visit);
 
-                return _anyShadowAccess;
+                return _requiresBuffering;
+            }
+
+            public override Expression Visit(Expression expression)
+                => _requiresBuffering ? expression : base.Visit(expression);
+
+            protected override Expression VisitConstant(ConstantExpression constantExpression)
+            {
+                if (constantExpression.Type.GetTypeInfo().IsGenericType
+                    && constantExpression.Type.GetGenericTypeDefinition() == typeof(EntityQueryable<>))
+                {
+                    var entityType = _model.FindEntityType(((IQueryable)constantExpression.Value).ElementType);
+
+                    if (entityType != null)
+                    {
+                        if (_referencedEntityTypes > 0
+                            || entityType.ShadowPropertyCount() > 0)
+                        {
+                            _requiresBuffering = true;
+
+                            return constantExpression;
+                        }
+
+                        _referencedEntityTypes++;
+                    }
+                }
+
+                return base.VisitConstant(constantExpression);
             }
 
             protected override Expression VisitMethodCall(MethodCallExpression methodCallExpression)
@@ -118,7 +164,9 @@ namespace Microsoft.Data.Entity.Query
                         methodCallExpression.Method.GetGenericMethodDefinition(),
                         EntityQueryModelVisitor.PropertyMethodInfo))
                 {
-                    _anyShadowAccess = true;
+                    _requiresBuffering = true;
+
+                    return methodCallExpression;
                 }
 
                 return base.VisitMethodCall(methodCallExpression);
@@ -131,11 +179,6 @@ namespace Microsoft.Data.Entity.Query
                 return expression;
             }
         }
-
-        public virtual IEnumerable<QueryAnnotation> GetCustomQueryAnnotations([NotNull] MethodInfo methodInfo)
-            => _queryAnnotations
-                .OfType<QueryAnnotation>()
-                .Where(qa => qa.IsCallTo(Check.NotNull(methodInfo, nameof(methodInfo))));
 
         public virtual EntityQueryModelVisitor CreateQueryModelVisitor()
             => CreateQueryModelVisitor(parentEntityQueryModelVisitor: null);

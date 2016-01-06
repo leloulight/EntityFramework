@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Migrations.Operations;
@@ -28,7 +29,7 @@ namespace Microsoft.Data.Entity.Migrations
                         new FakeSensitiveDataLogger<RelationalCommandBuilderFactory>(),
                         new DiagnosticListener("Fake"),
                         typeMapper),
-                    new RelationalSqlGenerator(),
+                    new RelationalSqlGenerationHelper(),
                     typeMapper,
                     new TestAnnotationProvider());
             }
@@ -71,6 +72,15 @@ namespace Microsoft.Data.Entity.Migrations
                 Sql);
         }
 
+        public override void AddColumnOperation_with_maxLength()
+        {
+            base.AddColumnOperation_with_maxLength();
+
+            Assert.Equal(
+                "ALTER TABLE \"Person\" ADD \"Name\" nvarchar(30);" + EOL,
+                Sql);
+        }
+
         public override void AddForeignKeyOperation_with_name()
         {
             base.AddForeignKeyOperation_with_name();
@@ -86,6 +96,15 @@ namespace Microsoft.Data.Entity.Migrations
 
             Assert.Equal(
                 "ALTER TABLE \"People\" ADD FOREIGN KEY (\"SpouseId\") REFERENCES \"People\" (\"Id\");" + EOL,
+                Sql);
+        }
+
+        public override void AddForeignKeyOperation_without_principal_columns()
+        {
+            base.AddForeignKeyOperation_without_principal_columns();
+
+            Assert.Equal(
+                "ALTER TABLE \"People\" ADD FOREIGN KEY (\"SpouseId\") REFERENCES \"People\";" + EOL,
                 Sql);
         }
 
@@ -284,27 +303,45 @@ namespace Microsoft.Data.Entity.Migrations
 
         private class ConcreteRelationalTypeMapper : RelationalTypeMapper
         {
-            protected override IReadOnlyDictionary<Type, RelationalTypeMapping> SimpleMappings { get; }
+            private readonly IReadOnlyDictionary<Type, RelationalTypeMapping> _simpleMappings
                 = new Dictionary<Type, RelationalTypeMapping>
                 {
-                    { typeof(int), new RelationalTypeMapping("int", typeof(int)) },
-                    { typeof(string), new RelationalTypeMapping("nvarchar(max)", typeof(string)) }
+                    { typeof(int), new RelationalTypeMapping("int", typeof(int)) }
                 };
 
-            protected override IReadOnlyDictionary<string, RelationalTypeMapping> SimpleNameMappings { get; }
-                = new Dictionary<string, RelationalTypeMapping>();
+            private readonly IReadOnlyDictionary<string, RelationalTypeMapping> _simpleNameMappings
+                = new Dictionary<string, RelationalTypeMapping>
+                {
+                    { "nvarchar", new RelationalTypeMapping("nvarchar", typeof(string)) }
+                };
 
-            protected override string GetColumnType(IProperty property) => null;
+            protected override IReadOnlyDictionary<Type, RelationalTypeMapping> GetSimpleMappings()
+                => _simpleMappings;
+
+            protected override IReadOnlyDictionary<string, RelationalTypeMapping> GetSimpleNameMappings()
+                => _simpleNameMappings;
+
+            protected override string GetColumnType(IProperty property) => property.TestProvider().ColumnType;
+
+            public override RelationalTypeMapping FindMapping([NotNull] Type clrType)
+                => clrType == typeof(string)
+                    ? new RelationalTypeMapping("nvarchar(max)", typeof(string))
+                    : base.FindMapping(clrType);
+
+            protected override RelationalTypeMapping FindCustomMapping([NotNull] IProperty property)
+                => property.ClrType == typeof(string) && property.GetMaxLength().HasValue
+                    ? new RelationalTypeMapping("nvarchar(" + property.GetMaxLength() + ")", typeof(string))
+                    : base.FindCustomMapping(property);
         }
 
         private class ConcreteMigrationSqlGenerator : MigrationsSqlGenerator
         {
             public ConcreteMigrationSqlGenerator(
                 IRelationalCommandBuilderFactory commandBuilderFactory,
-                ISqlGenerator sqlGenerator,
+                ISqlGenerationHelper sqlGenerationHelper,
                 IRelationalTypeMapper typeMapper,
                 IRelationalAnnotationProvider annotations)
-                : base(commandBuilderFactory, sqlGenerator, typeMapper, annotations)
+                : base(commandBuilderFactory, sqlGenerationHelper, typeMapper, annotations)
             {
             }
 

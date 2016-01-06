@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Metadata.Internal;
@@ -32,10 +31,10 @@ namespace Microsoft.Data.Entity.Metadata
             {
                 var providerSequences = Annotations.ProviderPrefix != null
                     ? Sequence.GetSequences(Model, Annotations.ProviderPrefix).ToList()
-                    : (IList<ISequence>)ImmutableList<ISequence>.Empty;
+                    : new List<ISequence>();
 
                 return Sequence.GetSequences(Model, RelationalAnnotationNames.Prefix)
-                    .Where(rs => !providerSequences.Any(ss => ss.Name == rs.Name && ss.Schema == rs.Schema))
+                    .Where(rs => !providerSequences.Any(ss => (ss.Name == rs.Name) && (ss.Schema == rs.Schema)))
                     .Concat(providerSequences)
                     .ToList();
             }
@@ -54,19 +53,13 @@ namespace Microsoft.Data.Entity.Metadata
 
         public virtual string DefaultSchema
         {
-            get
-            {
-                return (string)Annotations.GetAnnotation(RelationalAnnotationNames.DefaultSchema);
-            }
+            get { return (string)Annotations.GetAnnotation(RelationalAnnotationNames.DefaultSchema); }
             [param: CanBeNull] set { Annotations.SetAnnotation(RelationalAnnotationNames.DefaultSchema, Check.NullButNotEmpty(value, nameof(value))); }
         }
 
         public virtual string DatabaseName
         {
-            get
-            {
-                return (string)Annotations.GetAnnotation(RelationalAnnotationNames.DatabaseName);
-            }
+            get { return (string)Annotations.GetAnnotation(RelationalAnnotationNames.DatabaseName); }
             [param: CanBeNull] set { Annotations.SetAnnotation(RelationalAnnotationNames.DatabaseName, Check.NullButNotEmpty(value, nameof(value))); }
         }
     }

@@ -4,27 +4,14 @@
 using System;
 using System.Globalization;
 using System.Threading;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Microsoft.Data.Entity.Internal;
 using Xunit;
 
 namespace Microsoft.Data.Entity.Migrations.Design
 {
-    public class CSharpHelperTest : IDisposable
+    public class CSharpHelperTest 
     {
-        private readonly CultureInfo _backupCultureInfo;
-
-        public CSharpHelperTest()
-        {
-            _backupCultureInfo = Thread.CurrentThread.CurrentCulture;
-            // Ensure that there is a culture used which differs from the intended formatting and also from typical CI machines.
-            // This way, formatting dependent on the local system's settings will be caught by the tests.
-            Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
-        }
-
-        void IDisposable.Dispose()
-        {
-            Thread.CurrentThread.CurrentCulture = _backupCultureInfo;
-        }
         [Theory]
         [InlineData(
             "single-line string with \"",
@@ -126,12 +113,14 @@ namespace Microsoft.Data.Entity.Migrations.Design
                 "@\"multi-line" + Environment.NewLine + "string with \"\"\"");
 
         [Fact]
+        [UseCulture("de-DE")]
         public void Literal_works_when_DateTime() =>
             Literal_works(
                 new DateTime(2015, 3, 15, 20, 45, 17, 300, DateTimeKind.Local),
                 "new DateTime(2015, 3, 15, 20, 45, 17, 300, DateTimeKind.Local)");
 
         [Fact]
+        [UseCulture("de-DE")]
         public void Literal_works_when_DateTimeOffset() =>
             Literal_works(
                 new DateTimeOffset(new DateTime(2015, 3, 15, 19, 43, 47, 500), new TimeSpan(-7, 0, 0)),
@@ -195,27 +184,30 @@ namespace Microsoft.Data.Entity.Migrations.Design
             Assert.Equal(CommandsStrings.UnknownLiteral(typeof(object)), ex.Message);
         }
 
-        [Fact]
-        public void Reference_works_when_nested()
-        {
-            Assert.Equal(
-                "CSharpHelperTest.Nested",
-                new CSharpHelper().Reference(typeof(Nested)));
-        }
-
-        [Fact]
-        public void Reference_works_when_nested_more()
-        {
-            Assert.Equal(
-                "CSharpHelperTest.Nested.DoubleNested",
-                new CSharpHelper().Reference(typeof(Nested.DoubleNested)));
-        }
+        [Theory]
+        [InlineData(typeof(int), "int")]
+        [InlineData(typeof(int?), "int?")]
+        [InlineData(typeof(int[]), "int[]")]
+        [InlineData(typeof(int[,]), "int[,]")]
+        [InlineData(typeof(int[][]), "int[][]")]
+        [InlineData(typeof(Generic<int>), "Generic<int>")]
+        [InlineData(typeof(Nested), "CSharpHelperTest.Nested")]
+        [InlineData(typeof(Generic<Generic<int>>), "Generic<Generic<int>>")]
+        [InlineData(typeof(MultiGeneric<int, int>), "MultiGeneric<int, int>")]
+        [InlineData(typeof(NestedGeneric<int>), "CSharpHelperTest.NestedGeneric<int>")]
+        [InlineData(typeof(Nested.DoubleNested), "CSharpHelperTest.Nested.DoubleNested")]
+        public void Reference_works(Type type, string expected)
+            => Assert.Equal(expected, new CSharpHelper().Reference(type));
 
         private class Nested
         {
             public class DoubleNested
             {
             }
+        }
+
+        internal class NestedGeneric<T>
+        {
         }
 
         private enum SomeEnum
@@ -227,7 +219,7 @@ namespace Microsoft.Data.Entity.Migrations.Design
         [InlineData("dash-er", "dasher")]
         [InlineData("params", "@params")]
         [InlineData("true", "@true")]
-        [InlineData("yield", "@yield")]
+        [InlineData("yield", "yield")]
         [InlineData("spac ed", "spaced")]
         [InlineData("1nders", "_1nders")]
         [InlineData("name.space", "@namespace")]
@@ -249,5 +241,13 @@ namespace Microsoft.Data.Entity.Migrations.Design
         {
             Assert.Equal(excepted, new CSharpHelper().Namespace(input));
         }
+    }
+
+    internal class Generic<T>
+    {
+    }
+
+    internal class MultiGeneric<T1, T2>
+    {
     }
 }

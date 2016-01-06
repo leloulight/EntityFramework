@@ -4,17 +4,20 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.Northwind;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Xunit;
+// ReSharper disable UseCollectionCountProperty
 
 // ReSharper disable AccessToDisposedClosure
 // ReSharper disable PossibleUnintendedReferenceComparison
 
 namespace Microsoft.Data.Entity.FunctionalTests
 {
+    [MonoVersionCondition(Min = "4.2.0", SkipReason = "Queries fail on Mono < 4.2.0 due to differences in the implementation of LINQ")]
     public abstract class QueryNavigationsTestBase<TFixture> : IClassFixture<TFixture>
         where TFixture : NorthwindQueryFixtureBase, new()
     {
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation()
         {
             using (var context = CreateContext())
@@ -28,7 +31,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Select_Where_Navigation_Async()
         {
             using (var context = CreateContext())
@@ -42,7 +45,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Scalar_Equals_Navigation_Scalar()
         {
             using (var context = CreateContext())
@@ -57,7 +60,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Scalar_Equals_Navigation_Scalar_Projected()
         {
             using (var context = CreateContext())
@@ -72,7 +75,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Client()
         {
             using (var context = CreateContext())
@@ -86,7 +89,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Deep()
         {
             using (var context = CreateContext())
@@ -100,7 +103,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Null()
         {
             using (var context = CreateContext())
@@ -114,7 +117,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Null_Reverse()
         {
             using (var context = CreateContext())
@@ -128,7 +131,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Null_Deep()
         {
             using (var context = CreateContext())
@@ -142,7 +145,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Equals_Navigation()
         {
             using (var context = CreateContext())
@@ -157,7 +160,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Included()
         {
             using (var context = CreateContext())
@@ -172,7 +175,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Singleton_Navigation_With_Member_Access()
         {
             using (var context = CreateContext())
@@ -188,7 +191,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Singleton_Navigation_With_Member_Access()
         {
             using (var context = CreateContext())
@@ -200,11 +203,11 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         select new { A = o.Customer, B = o.Customer.City }).ToList();
 
                 Assert.Equal(14, orders.Count);
-                Assert.True(orders.All(o => o.A != null && o.B != null));
+                Assert.True(orders.All(o => (o.A != null) && (o.B != null)));
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Select_Singleton_Navigation_With_Member_Access_Async()
         {
             using (var context = CreateContext())
@@ -216,41 +219,41 @@ namespace Microsoft.Data.Entity.FunctionalTests
                        select new { A = o.Customer, B = o.Customer.City }).ToListAsync();
 
                 Assert.Equal(14, orders.Count);
-                Assert.True(orders.All(o => o.A != null && o.B != null));
+                Assert.True(orders.All(o => (o.A != null) && (o.B != null)));
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigations()
         {
             using (var context = CreateContext())
             {
                 var orders
                     = (from o in context.Set<Order>()
-                        where o.Customer.City == "Seattle"
-                              && o.Customer.Phone != "555 555 5555"
+                        where (o.Customer.City == "Seattle")
+                              && (o.Customer.Phone != "555 555 5555")
                         select o).ToList();
 
                 Assert.Equal(14, orders.Count);
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Multiple_Access()
         {
             using (var context = CreateContext())
             {
                 var orders
                     = (from o in context.Set<Order>()
-                        where o.Customer.City == "Seattle"
-                              && o.Customer.Phone != "555 555 5555"
+                        where (o.Customer.City == "Seattle")
+                              && (o.Customer.Phone != "555 555 5555")
                         select o).ToList();
 
                 Assert.Equal(14, orders.Count);
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Navigation()
         {
             using (var context = CreateContext())
@@ -264,7 +267,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Navigations()
         {
             using (var context = CreateContext())
@@ -274,11 +277,11 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         select new { A = o.Customer, B = o.Customer }).ToList();
 
                 Assert.Equal(830, orders.Count);
-                Assert.True(orders.All(o => o.A != null && o.B != null));
+                Assert.True(orders.All(o => (o.A != null) && (o.B != null)));
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Navigations_Where_Navigations()
         {
             using (var context = CreateContext())
@@ -290,11 +293,43 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         select new { A = o.Customer, B = o.Customer }).ToList();
 
                 Assert.Equal(14, orders.Count);
-                Assert.True(orders.All(o => o.A != null && o.B != null));
+                Assert.True(orders.All(o => (o.A != null) && (o.B != null)));
             }
         }
 
-        [Fact]
+        [ConditionalFact]
+        public virtual void Select_collection_navigation_simple()
+        {
+            using (var context = CreateContext())
+            {
+                var query = from c in context.Customers
+                            where c.CustomerID.StartsWith("A")
+                            select new { Orders = c.Orders };
+
+                var results = query.ToList();
+
+                Assert.Equal(4, results.Count);
+                Assert.True(results.All(r => r.Orders.Count > 0));
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Select_collection_navigation_multi_part()
+        {
+            using (var context = CreateContext())
+            {
+                var query = from o in context.Orders
+                            where o.CustomerID == "ALFKI"
+                            select new { Orders = o.Customer.Orders };
+
+                var results = query.ToList();
+
+                Assert.Equal(6, results.Count);
+                Assert.True(results.All(r => r.Orders.Count > 0));
+            }
+        }
+
+        [ConditionalFact]
         public virtual void Collection_select_nav_prop_any()
         {
             using (var context = CreateContext())
@@ -308,7 +343,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_where_nav_prop_any()
         {
             using (var context = CreateContext())
@@ -322,7 +357,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_where_nav_prop_any_predicate()
         {
             using (var context = CreateContext())
@@ -336,7 +371,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_select_nav_prop_all()
         {
             using (var context = CreateContext())
@@ -350,7 +385,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_select_nav_prop_all_client()
         {
             using (var context = CreateContext())
@@ -364,7 +399,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_where_nav_prop_all()
         {
             using (var context = CreateContext())
@@ -378,7 +413,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_where_nav_prop_all_client()
         {
             using (var context = CreateContext())
@@ -392,7 +427,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_select_nav_prop_count()
         {
             using (var context = CreateContext())
@@ -405,7 +440,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_where_nav_prop_count()
         {
             using (var context = CreateContext())
@@ -419,7 +454,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_where_nav_prop_count_reverse()
         {
             using (var context = CreateContext())
@@ -433,7 +468,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_orderby_nav_prop_count()
         {
             using (var context = CreateContext())
@@ -447,7 +482,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_select_nav_prop_long_count()
         {
             using (var context = CreateContext())
@@ -460,7 +495,30 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
+        public virtual void Select_multiple_complex_projections()
+        {
+            using (var context = CreateContext())
+            {
+                var customers
+                    = (from o in context.Orders
+                       where o.CustomerID.StartsWith("A")
+                       select new
+                       {
+                           collection1 = o.OrderDetails.Count(),
+                           scalar1 = o.OrderDate,
+                           any = o.OrderDetails.Select(od => od.UnitPrice).Any(up => up > 10),
+                           conditional = o.CustomerID == "ALFKI" ? "50" : "10",
+                           scalar2 = (int?)o.OrderID,
+                           all = o.OrderDetails.All(od => od.OrderID == 42),
+                           collection2 = o.OrderDetails.LongCount(),
+                       }).ToList();
+
+                Assert.Equal(30, customers.Count);
+            }
+        }
+
+        [ConditionalFact]
         public virtual void Collection_select_nav_prop_sum()
         {
             using (var context = CreateContext())
@@ -473,7 +531,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_where_nav_prop_sum()
         {
             using (var context = CreateContext())
@@ -487,7 +545,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Collection_where_nav_prop_sum_async()
         {
             using (var context = CreateContext())
@@ -501,7 +559,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_select_nav_prop_first_or_default()
         {
             using (var context = CreateContext())
@@ -514,7 +572,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Collection_select_nav_prop_first_or_default_then_nav_prop()
         {
             using (var context = CreateContext())
@@ -524,6 +582,89 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         select new { c.Orders.FirstOrDefault().Customer }).ToList();
 
                 Assert.Equal(91, customers.Count);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Navigation_fk_based_inside_contains()
+        {
+            using (var context = CreateContext())
+            {
+                var query
+                    = from o in context.Orders
+                       where new[] { "ALFKI", }.Contains(o.Customer.CustomerID)
+                       select o;
+
+                var result = query.ToList();
+
+                Assert.Equal(6, result.Count);
+                Assert.True(result.All(e => e.CustomerID == "ALFKI"));
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Navigation_inside_contains()
+        {
+            using (var context = CreateContext())
+            {
+                var query
+                    = from o in context.Orders
+                       where new[] { "Novigrad", "Seattle" }.Contains(o.Customer.City)
+                       select o;
+
+                var result = query.ToList();
+
+                Assert.Equal(14, result.Count);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Navigation_inside_contains_nested()
+        {
+            using (var context = CreateContext())
+            {
+                var query
+                    = from od in context.OrderDetails
+                       where new[] { "Novigrad", "Seattle" }.Contains(od.Order.Customer.City)
+                       select od;
+
+                var result = query.ToList();
+
+                Assert.Equal(40, result.Count);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Navigation_from_join_clause_inside_contains()
+        {
+            using (var context = CreateContext())
+            {
+                var query = from od in context.OrderDetails
+                            join o in context.Orders on od.OrderID equals o.OrderID
+                            where new[] { "USA", "Redania" }.Contains(o.Customer.Country)
+                            select od;
+
+                var result = query.ToList();
+
+                Assert.Equal(352, result.Count);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Navigation_in_subquery_referencing_outer_query()
+        {
+            using (var context = CreateContext())
+            {
+                var query = from o in context.Orders
+                            // ReSharper disable once UseMethodAny.0
+                            where (from od in context.OrderDetails
+                                   where o.Customer.Country == od.Order.Customer.Country
+                                   select od).Count() > 0
+                            select o;
+
+                var result = query.ToList();
+
+                Assert.Equal(830, result.Count);
             }
         }
 

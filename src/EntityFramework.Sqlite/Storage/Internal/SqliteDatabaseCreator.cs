@@ -6,24 +6,29 @@ using JetBrains.Annotations;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Migrations;
 using Microsoft.Data.Entity.Utilities;
+using Microsoft.Data.Sqlite;
 
 namespace Microsoft.Data.Entity.Storage.Internal
 {
     public class SqliteDatabaseCreator : RelationalDatabaseCreator
     {
-        private readonly ISqlCommandBuilder _sqlCommandBuilder;
+        private const int SQLITE_CANTOPEN = 14;
+
+        private readonly SqliteRelationalConnection _connection;
+        private readonly IRawSqlCommandBuilder _rawSqlCommandBuilder;
 
         public SqliteDatabaseCreator(
-            [NotNull] IRelationalConnection connection,
+            [NotNull] SqliteRelationalConnection connection,
             [NotNull] IMigrationsModelDiffer modelDiffer,
             [NotNull] IMigrationsSqlGenerator migrationsSqlGenerator,
             [NotNull] IModel model,
-            [NotNull] ISqlCommandBuilder sqlCommandBuilder)
+            [NotNull] IRawSqlCommandBuilder rawSqlCommandBuilder)
             : base(model, connection, modelDiffer, migrationsSqlGenerator)
         {
-            Check.NotNull(sqlCommandBuilder, nameof(sqlCommandBuilder));
+            Check.NotNull(rawSqlCommandBuilder, nameof(rawSqlCommandBuilder));
 
-            _sqlCommandBuilder = sqlCommandBuilder;
+            _connection = connection;
+            _rawSqlCommandBuilder = rawSqlCommandBuilder;
         }
 
         public override void Create()
@@ -32,11 +37,26 @@ namespace Microsoft.Data.Entity.Storage.Internal
             Connection.Close();
         }
 
-        public override bool Exists() => true;
+        public override bool Exists()
+        {
+            using (var readOnlyConnection = _connection.CreateReadOnlyConnection())
+            {
+                try
+                {
+                    readOnlyConnection.Open();
+                }
+                catch (SqliteException ex) when (ex.SqliteErrorCode == SQLITE_CANTOPEN)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         protected override bool HasTables()
         {
-            var count = (long)_sqlCommandBuilder
+            var count = (long)_rawSqlCommandBuilder
                 .Build("SELECT COUNT(*) FROM \"sqlite_master\" WHERE \"type\" = 'table' AND \"rootpage\" IS NOT NULL;")
                 .ExecuteScalar(Connection);
 

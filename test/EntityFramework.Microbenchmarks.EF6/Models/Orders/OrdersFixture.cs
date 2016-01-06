@@ -1,9 +1,9 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System.Linq;
 using EntityFramework.Microbenchmarks.Core;
 using EntityFramework.Microbenchmarks.Core.Models.Orders;
-using System.Linq;
 using Xunit;
 
 namespace EntityFramework.Microbenchmarks.EF6.Models.Orders
@@ -27,10 +27,13 @@ namespace EntityFramework.Microbenchmarks.EF6.Models.Orders
             EnsureDatabaseCreated();
         }
 
-        public OrdersContext CreateContext()
+        public virtual OrdersContext CreateContext()
         {
             return new OrdersContext(_connectionString);
         }
+
+        protected virtual void OnDatabaseCreated(OrdersContext context)
+        { }
 
         private void EnsureDatabaseCreated()
         {
@@ -40,12 +43,14 @@ namespace EntityFramework.Microbenchmarks.EF6.Models.Orders
                 {
                     context.Database.Create();
                     InsertSeedData();
+                    OnDatabaseCreated(context);
                 }
                 else if (!IsDatabaseCorrect(context))
                 {
                     context.Database.Delete();
                     context.Database.Create();
                     InsertSeedData();
+                    OnDatabaseCreated(context);
                 }
 
                 Assert.True(IsDatabaseCorrect(context));
@@ -55,10 +60,10 @@ namespace EntityFramework.Microbenchmarks.EF6.Models.Orders
         private bool IsDatabaseCorrect(OrdersContext context)
         {
             return context.Database.CompatibleWithModel(throwIfNoMetadata: true)
-                && _productCount == context.Products.Count()
-                && _customerCount == context.Customers.Count()
-                && _customerCount * _ordersPerCustomer == context.Orders.Count()
-                && _customerCount * _ordersPerCustomer * _linesPerOrder == context.OrderLines.Count();
+                   && (_productCount == context.Products.Count())
+                   && (_customerCount == context.Customers.Count())
+                   && (_customerCount * _ordersPerCustomer == context.Orders.Count())
+                   && (_customerCount * _ordersPerCustomer * _linesPerOrder == context.OrderLines.Count());
         }
 
         private void InsertSeedData()

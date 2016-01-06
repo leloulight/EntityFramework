@@ -5,16 +5,18 @@ namespace E2E.Sqlite
 {
     public partial class OneToOneAttributesContext : DbContext
     {
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            options.UseSqlite(@"Data Source=OneToOneAttributes.db;Cache=Private");
+            optionsBuilder.UseSqlite(@"Data Source=OneToOneAttributes.db;Cache=Private");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Dependent>(entity =>
             {
-                entity.HasIndex(e => e.PrincipalId).HasName("sqlite_autoindex_Dependent_1").IsUnique();
+                entity.HasIndex(e => e.PrincipalId)
+                    .HasName("sqlite_autoindex_Dependent_1")
+                    .IsUnique();
 
                 entity.Property(e => e.Id).HasColumnType("INT");
 

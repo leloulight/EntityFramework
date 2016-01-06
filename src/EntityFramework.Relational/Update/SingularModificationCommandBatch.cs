@@ -10,14 +10,14 @@ namespace Microsoft.Data.Entity.Update
     {
         public SingularModificationCommandBatch(
             [NotNull] IRelationalCommandBuilderFactory commandBuilderFactory,
-            [NotNull] ISqlGenerator sqlGenerator,
+            [NotNull] ISqlGenerationHelper sqlGenerationHelper,
             [NotNull] IUpdateSqlGenerator updateSqlGenerator,
             [NotNull] IRelationalValueBufferFactoryFactory valueBufferFactoryFactory)
             : base(
-                  commandBuilderFactory,
-                  sqlGenerator,
-                  updateSqlGenerator,
-                  valueBufferFactoryFactory)
+                commandBuilderFactory,
+                sqlGenerationHelper,
+                updateSqlGenerator,
+                valueBufferFactoryFactory)
         {
         }
 

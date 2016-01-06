@@ -17,74 +17,24 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             _useRelationalNulls = useRelationalNulls;
         }
 
-        public override Expression Visit([NotNull] Expression expression)
+        public override Expression Visit([NotNull] Expression node)
         {
-            var currentExpression = expression;
-            var inExpressionOptimized =
-                new EqualityPredicateInExpressionOptimizer().Visit(currentExpression);
+            node = new EqualityPredicateInExpressionOptimizer().Visit(node);
 
-            currentExpression = inExpressionOptimized;
+            var predicateNegationExpressionOptimizer = new PredicateNegationExpressionOptimizer();
 
-            var negationOptimized1 =
-                new PredicateNegationExpressionOptimizer()
-                    .Visit(currentExpression);
+            node = predicateNegationExpressionOptimizer.Visit(node);
 
-            currentExpression = negationOptimized1;
+            node = new EqualityPredicateExpandingVisitor().Visit(node);
 
-            var equalityExpanded =
-                new EqualityPredicateExpandingVisitor().Visit(currentExpression);
-
-            currentExpression = equalityExpanded;
-
-            var negationOptimized2 =
-                new PredicateNegationExpressionOptimizer()
-                    .Visit(currentExpression);
-
-            currentExpression = negationOptimized2;
-
-            var parameterDectector = new ParameterExpressionDetectingVisitor();
-            parameterDectector.Visit(currentExpression);
-
-            if (!parameterDectector.ContainsParameters
-                && !_useRelationalNulls)
-            {
-                var optimizedNullExpansionVisitor = new RelationalNullsOptimizedExpandingVisitor();
-                var relationalNullsExpandedOptimized = optimizedNullExpansionVisitor.Visit(currentExpression);
-                if (optimizedNullExpansionVisitor.OptimizedExpansionPossible)
-                {
-                    currentExpression = relationalNullsExpandedOptimized;
-                }
-                else
-                {
-                    currentExpression = new RelationalNullsExpandingVisitor()
-                        .Visit(currentExpression);
-                }
-            }
+            node = predicateNegationExpressionOptimizer.Visit(node);
 
             if (_useRelationalNulls)
             {
-                currentExpression = new NotNullableExpression(currentExpression);
+                node = new NotNullableExpression(node);
             }
 
-            var negationOptimized3 =
-                new PredicateNegationExpressionOptimizer()
-                    .Visit(currentExpression);
-
-            currentExpression = negationOptimized3;
-
-            return currentExpression;
-        }
-
-        private class ParameterExpressionDetectingVisitor : RelinqExpressionVisitor
-        {
-            public bool ContainsParameters { get; private set; }
-
-            protected override Expression VisitParameter(ParameterExpression expression)
-            {
-                ContainsParameters = true;
-
-                return base.VisitParameter(expression);
-            }
+            return node;
         }
     }
 }

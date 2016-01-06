@@ -23,7 +23,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
 
         public virtual void PropagateValue(InternalEntityEntry entry, IProperty property)
         {
-            Debug.Assert(property.IsForeignKey(entry.EntityType));
+            Debug.Assert(property.IsForeignKey());
 
             if (!TryPropagateValue(entry, property)
                 && property.IsKey())
@@ -95,7 +95,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             return null;
         }
 
-        private object TryFindPrincipal(IStateManager stateManager, INavigation navigation, object dependentEntity)
+        private static object TryFindPrincipal(IStateManager stateManager, INavigation navigation, object dependentEntity)
         {
             if (navigation.IsDependentToPrincipal())
             {

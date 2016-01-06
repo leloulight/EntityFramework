@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using JetBrains.Annotations;
 using Microsoft.Data.Entity.Query.Expressions;
 using Microsoft.Data.Entity.Utilities;
 using Remotion.Linq.Parsing;
@@ -13,47 +12,46 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
 {
     public class EqualityPredicateInExpressionOptimizer : RelinqExpressionVisitor
     {
-        protected override Expression VisitBinary(
-            [NotNull] BinaryExpression binaryExpression)
+        protected override Expression VisitBinary(BinaryExpression node)
         {
-            Check.NotNull(binaryExpression, nameof(binaryExpression));
+            Check.NotNull(node, nameof(node));
 
-            switch (binaryExpression.NodeType)
+            switch (node.NodeType)
             {
                 case ExpressionType.OrElse:
-                {
-                    var optimized
-                        = TryOptimize(
-                            binaryExpression,
-                            equalityType: ExpressionType.Equal,
-                            inExpressionFactory: (c, vs) => new InExpression(c, vs));
-
-                    if (optimized != null)
                     {
-                        return optimized;
-                    }
+                        var optimized
+                            = TryOptimize(
+                                node,
+                                equalityType: ExpressionType.Equal,
+                                inExpressionFactory: (c, vs) => new InExpression(c, vs));
 
-                    break;
-                }
+                        if (optimized != null)
+                        {
+                            return optimized;
+                        }
+
+                        break;
+                    }
 
                 case ExpressionType.AndAlso:
-                {
-                    var optimized
-                        = TryOptimize(
-                            binaryExpression,
-                            equalityType: ExpressionType.NotEqual,
-                            inExpressionFactory: (c, vs) => Expression.Not(new InExpression(c, vs)));
-
-                    if (optimized != null)
                     {
-                        return optimized;
-                    }
+                        var optimized
+                            = TryOptimize(
+                                node,
+                                equalityType: ExpressionType.NotEqual,
+                                inExpressionFactory: (c, vs) => Expression.Not(new InExpression(c, vs)));
 
-                    break;
-                }
+                        if (optimized != null)
+                        {
+                            return optimized;
+                        }
+
+                        break;
+                    }
             }
 
-            return base.VisitBinary(binaryExpression);
+            return base.VisitBinary(node);
         }
 
         private Expression TryOptimize(
@@ -124,8 +122,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
                     inArguments);
             }
 
-            if (leftExpression != binaryExpression.Left
-                || rightExpression != binaryExpression.Right)
+            if ((leftExpression != binaryExpression.Left)
+                || (rightExpression != binaryExpression.Right))
             {
                 return Expression.MakeBinary(
                     binaryExpression.NodeType,
@@ -187,8 +185,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
         {
             var unaryExpression = expression as UnaryExpression;
 
-            return unaryExpression != null
-                   && unaryExpression.NodeType == ExpressionType.Not
+            return (unaryExpression != null)
+                   && (unaryExpression.NodeType == ExpressionType.Not)
                 ? MatchInExpression(unaryExpression.Operand, ref values)
                 : null;
         }

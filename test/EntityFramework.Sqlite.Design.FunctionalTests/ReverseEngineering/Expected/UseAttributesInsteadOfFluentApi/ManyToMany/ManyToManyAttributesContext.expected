@@ -5,16 +5,18 @@ namespace E2E.Sqlite
 {
     public partial class ManyToManyAttributesContext : DbContext
     {
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            options.UseSqlite(@"Data Source=ManyToManyAttributes.db;Cache=Private");
+            optionsBuilder.UseSqlite(@"Data Source=ManyToManyAttributes.db;Cache=Private");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Users_Groups>(entity =>
             {
-                entity.HasIndex(e => new { e.UserId, e.GroupId }).HasName("sqlite_autoindex_Users_Groups_2").IsUnique();
+                entity.HasIndex(e => new { e.UserId, e.GroupId })
+                    .HasName("sqlite_autoindex_Users_Groups_2")
+                    .IsUnique();
             });
         }
 

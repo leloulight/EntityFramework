@@ -17,6 +17,7 @@
     "EntityFramework.Relational.Design.RelationalDesignStrings": "Properties/RelationalDesignStrings.resx"
   },
   "frameworks": {
+<<<<<<< HEAD
     "net451": {
       "frameworkAssemblies": {
         "System.ComponentModel.DataAnnotations": "4.0.0.0",
@@ -56,5 +57,10 @@
   "packInclude": {
     "build/": "build/**",
     "lib/": "lib/**"
+=======
+    "net451": { },
+    "dotnet5.4": { },
+    "netcore50": { }
+>>>>>>> refs/remotes/aspnet/dev
   }
 }

@@ -5,24 +5,37 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Utilities;
 
 namespace Microsoft.Data.Entity.Metadata.Internal
 {
-    public class ForeignKey : ConventionalAnnotatable, IMutableForeignKey
+    public class ForeignKey 
+        : ConventionalAnnotatable, IMutableForeignKey, IDependentKeyValueFactorySource, IDependentsMapFactorySource
     {
         private DeleteBehavior? _deleteBehavior;
+        private bool? _isUnique;
+
+        private ConfigurationSource _configurationSource;
+        private ConfigurationSource? _foreignKeyPropertiesConfigurationSource;
+        private ConfigurationSource? _principalKeyConfigurationSource;
+        private ConfigurationSource? _isUniqueConfigurationSource;
+        private ConfigurationSource? _isRequiredConfigurationSource;
+        private ConfigurationSource? _deleteBehaviorConfigurationSource;
+        private ConfigurationSource? _principalEndConfigurationSource;
+        private ConfigurationSource? _dependentToPrincipalConfigurationSource;
+        private ConfigurationSource? _principalToDependentConfigurationSource;
 
         public ForeignKey(
             [NotNull] IReadOnlyList<Property> dependentProperties,
             [NotNull] Key principalKey,
             [NotNull] EntityType dependentEntityType,
-            [NotNull] EntityType principalEntityType)
+            [NotNull] EntityType principalEntityType,
+            ConfigurationSource configurationSource)
         {
             Check.NotEmpty(dependentProperties, nameof(dependentProperties));
             Check.HasNoNulls(dependentProperties, nameof(dependentProperties));
-            MetadataHelper.CheckSameEntityType(dependentProperties, nameof(dependentProperties));
             Check.NotNull(principalKey, nameof(principalKey));
             Check.NotNull(principalEntityType, nameof(principalEntityType));
 
@@ -30,6 +43,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             PrincipalKey = principalKey;
             DeclaringEntityType = dependentEntityType;
             PrincipalEntityType = principalEntityType;
+            _configurationSource = configurationSource;
 
             AreCompatible(principalKey.Properties, dependentProperties, principalEntityType, dependentEntityType, shouldThrow: true);
 
@@ -40,33 +54,117 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                         Property.Format(principalKey.Properties),
                         principalEntityType));
             }
+
+            Builder = new InternalRelationshipBuilder(this, dependentEntityType.Model.Builder);
         }
+
+        public virtual IReadOnlyList<Property> Properties { get; }
+        public virtual Key PrincipalKey { get; }
+        public virtual EntityType DeclaringEntityType { get; }
+        public virtual EntityType PrincipalEntityType { get; }
+
+        public virtual InternalRelationshipBuilder Builder { get; [param: CanBeNull] set; }
+        public virtual ConfigurationSource GetConfigurationSource() => _configurationSource;
+
+        public virtual void UpdateConfigurationSource(ConfigurationSource configurationSource)
+        {
+            _configurationSource = _configurationSource.Max(configurationSource);
+
+            DeclaringEntityType.UpdateConfigurationSource(configurationSource);
+            PrincipalEntityType.UpdateConfigurationSource(configurationSource);
+        }
+
+        public virtual ConfigurationSource? GetForeignKeyPropertiesConfigurationSource() => _foreignKeyPropertiesConfigurationSource;
+
+        public virtual void UpdateForeignKeyPropertiesConfigurationSource(ConfigurationSource configurationSource)
+        {
+            _foreignKeyPropertiesConfigurationSource = configurationSource.Max(_foreignKeyPropertiesConfigurationSource);
+            foreach (var property in Properties)
+            {
+                property.UpdateConfigurationSource(configurationSource);
+            }
+        }
+
+        public virtual ConfigurationSource? GetPrincipalKeyConfigurationSource() => _principalKeyConfigurationSource;
+
+        public virtual void UpdatePrincipalKeyConfigurationSource(ConfigurationSource configurationSource)
+        {
+            _principalKeyConfigurationSource = configurationSource.Max(_principalKeyConfigurationSource);
+            PrincipalKey.UpdateConfigurationSource(configurationSource);
+        }
+
+        public virtual ConfigurationSource? GetPrincipalEndConfigurationSource() => _principalEndConfigurationSource;
+
+        public virtual void UpdatePrincipalEndConfigurationSource(ConfigurationSource configurationSource)
+            => _principalEndConfigurationSource = configurationSource.Max(_principalEndConfigurationSource);
 
         public virtual Navigation DependentToPrincipal { get; private set; }
 
-        public virtual Navigation HasDependentToPrincipal([CanBeNull] string name)
+        public virtual Navigation HasDependentToPrincipal(
+            [CanBeNull] string name,
+            ConfigurationSource configurationSource = ConfigurationSource.Explicit,
+            bool runConventions = true)
         {
             var oldNavigation = DependentToPrincipal;
+            if (name == oldNavigation?.Name)
+            {
+                UpdateDependentToPrincipalConfigurationSource(configurationSource);
+                return oldNavigation;
+            }
+
             if (oldNavigation != null)
             {
                 DeclaringEntityType.RemoveNavigation(oldNavigation.Name);
             }
 
-            Navigation newNavigation = null;
+            Navigation navigation = null;
             if (name != null)
             {
-                newNavigation = DeclaringEntityType.AddNavigation(name, this, pointsToPrincipal: true);
+                navigation = DeclaringEntityType.AddNavigation(name, this, pointsToPrincipal: true);
             }
 
-            DependentToPrincipal = newNavigation;
-            return newNavigation ?? oldNavigation;
+            DependentToPrincipal = navigation;
+            UpdateDependentToPrincipalConfigurationSource(configurationSource);
+
+            if (runConventions)
+            {
+                if (oldNavigation != null)
+                {
+                    DeclaringEntityType.Model.ConventionDispatcher.OnNavigationRemoved(
+                        DeclaringEntityType.Builder,
+                        PrincipalEntityType.Builder,
+                        oldNavigation.Name);
+                }
+
+                if (navigation != null)
+                {
+                    navigation = DeclaringEntityType.Model.ConventionDispatcher.OnNavigationAdded(Builder, navigation)
+                        ?.Metadata.DependentToPrincipal;
+                }
+            }
+
+            return navigation ?? oldNavigation;
         }
+
+        public virtual ConfigurationSource? GetDependentToPrincipalConfigurationSource() => _dependentToPrincipalConfigurationSource;
+
+        private void UpdateDependentToPrincipalConfigurationSource(ConfigurationSource configurationSource)
+            => _dependentToPrincipalConfigurationSource = configurationSource.Max(_dependentToPrincipalConfigurationSource);
 
         public virtual Navigation PrincipalToDependent { get; private set; }
 
-        public virtual Navigation HasPrincipalToDependent([CanBeNull] string name)
+        public virtual Navigation HasPrincipalToDependent(
+            [CanBeNull] string name,
+            ConfigurationSource configurationSource = ConfigurationSource.Explicit,
+            bool runConventions = true)
         {
             var oldNavigation = PrincipalToDependent;
+            if (name == oldNavigation?.Name)
+            {
+                UpdatePrincipalToDependentConfigurationSource(configurationSource);
+                return oldNavigation;
+            }
+
             if (oldNavigation != null)
             {
                 PrincipalEntityType.RemoveNavigation(oldNavigation.Name);
@@ -79,67 +177,106 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             }
 
             PrincipalToDependent = navigation;
+            UpdatePrincipalToDependentConfigurationSource(configurationSource);
+
+            if (runConventions)
+            {
+                if (oldNavigation != null)
+                {
+                    DeclaringEntityType.Model.ConventionDispatcher.OnNavigationRemoved(
+                        PrincipalEntityType.Builder,
+                        DeclaringEntityType.Builder,
+                        oldNavigation.Name);
+                }
+
+                if (navigation != null)
+                {
+                    navigation = DeclaringEntityType.Model.ConventionDispatcher.OnNavigationAdded(Builder, navigation)
+                        ?.Metadata.PrincipalToDependent;
+                }
+            }
+
             return navigation ?? oldNavigation;
         }
 
-        public virtual IReadOnlyList<Property> Properties { get; }
-        public virtual Key PrincipalKey { get; }
-        public virtual EntityType DeclaringEntityType { get; }
-        public virtual EntityType PrincipalEntityType { get; }
+        public virtual ConfigurationSource? GetPrincipalToDependentConfigurationSource() => _principalToDependentConfigurationSource;
 
-        public virtual bool? IsUnique { get; set; }
-        protected virtual bool DefaultIsUnique => false;
+        private void UpdatePrincipalToDependentConfigurationSource(ConfigurationSource configurationSource)
+            => _principalToDependentConfigurationSource = configurationSource.Max(_principalToDependentConfigurationSource);
 
-        public virtual bool? IsRequired
+        public virtual bool IsUnique
         {
-            get
-            {
-                return Properties.Any(p => p.IsNullable.HasValue)
-                    ? !Properties.Any(p => ((IProperty)p).IsNullable) as bool?
-                    : null;
-            }
-            set
-            {
-                if (value == IsRequired)
-                {
-                    return;
-                }
-
-                var properties = Properties;
-                if (value.HasValue
-                    && !value.Value)
-                {
-                    var nullableTypeProperties = Properties.Where(p => ((IProperty)p).ClrType.IsNullableType()).ToList();
-                    if (nullableTypeProperties.Any())
-                    {
-                        properties = nullableTypeProperties;
-                    }
-                    // If no properties can be made nullable, let it fail
-                }
-
-                foreach (var property in properties)
-                {
-                    property.IsNullable = !value;
-                }
-            }
+            get { return _isUnique ?? DefaultIsUnique; }
+            set { SetIsUnique(value, ConfigurationSource.Explicit); }
         }
 
-        protected virtual bool DefaultIsRequired => !((IForeignKey)this).Properties.Any(p => p.IsNullable);
-
-        public virtual DeleteBehavior? DeleteBehavior
+        public virtual void SetIsUnique(bool unique, ConfigurationSource configurationSource)
         {
-            get { return _deleteBehavior; }
-            set
-            {
-                if (value != null)
-                {
-                    Check.IsDefined(value.Value, nameof(value));
-                }
-                _deleteBehavior = value;
-            }
+            _isUnique = unique;
+            UpdateIsUniqueConfigurationSource(configurationSource);
         }
 
-        protected virtual DeleteBehavior DefaultDeleteBehavior => Metadata.DeleteBehavior.Restrict;
+        private bool DefaultIsUnique => false;
+        public virtual ConfigurationSource? GetIsUniqueConfigurationSource() => _isUniqueConfigurationSource;
+
+        private void UpdateIsUniqueConfigurationSource(ConfigurationSource configurationSource)
+            => _isUniqueConfigurationSource = configurationSource.Max(_isUniqueConfigurationSource);
+
+        public virtual bool IsRequired
+        {
+            get { return !Properties.Any(p => p.IsNullable); }
+            set { SetIsRequired(value, ConfigurationSource.Explicit); }
+        }
+
+        public virtual void SetIsRequired(bool required, ConfigurationSource configurationSource)
+        {
+            if (required == IsRequired)
+            {
+                UpdateIsRequiredConfigurationSource(configurationSource);
+                return;
+            }
+
+            var properties = Properties;
+            if (!required)
+            {
+                var nullableTypeProperties = Properties.Where(p => p.ClrType.IsNullableType()).ToList();
+                if (nullableTypeProperties.Any())
+                {
+                    properties = nullableTypeProperties;
+                }
+                // If no properties can be made nullable, let it fail
+            }
+
+            foreach (var property in properties)
+            {
+                property.SetIsNullable(!required, configurationSource);
+            }
+
+            UpdateIsRequiredConfigurationSource(configurationSource);
+        }
+
+        public virtual ConfigurationSource? GetIsRequiredConfigurationSource() => _isRequiredConfigurationSource;
+
+        private void UpdateIsRequiredConfigurationSource(ConfigurationSource configurationSource)
+            => _isRequiredConfigurationSource = configurationSource.Max(_isRequiredConfigurationSource);
+
+        public virtual DeleteBehavior DeleteBehavior
+        {
+            get { return _deleteBehavior ?? DefaultDeleteBehavior; }
+            set { SetDeleteBehavior(value, ConfigurationSource.Explicit); }
+        }
+
+        public virtual void SetDeleteBehavior(DeleteBehavior deleteBehavior, ConfigurationSource configurationSource)
+        {
+            _deleteBehavior = deleteBehavior;
+            UpdateDeleteBehaviorConfigurationSource(configurationSource);
+        }
+
+        private DeleteBehavior DefaultDeleteBehavior => DeleteBehavior.Restrict;
+        public virtual ConfigurationSource? GetDeleteBehaviorConfigurationSource() => _deleteBehaviorConfigurationSource;
+
+        private void UpdateDeleteBehaviorConfigurationSource(ConfigurationSource configurationSource)
+            => _deleteBehaviorConfigurationSource = configurationSource.Max(_deleteBehaviorConfigurationSource);
 
         public virtual IEnumerable<Navigation> FindNavigationsFrom([NotNull] EntityType entityType)
             => ((IForeignKey)this).FindNavigationsFrom(entityType).Cast<Navigation>();
@@ -174,13 +311,10 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         INavigation IForeignKey.DependentToPrincipal => DependentToPrincipal;
         IMutableNavigation IMutableForeignKey.DependentToPrincipal => DependentToPrincipal;
         IMutableNavigation IMutableForeignKey.HasDependentToPrincipal(string name) => HasDependentToPrincipal(name);
+
         INavigation IForeignKey.PrincipalToDependent => PrincipalToDependent;
         IMutableNavigation IMutableForeignKey.PrincipalToDependent => PrincipalToDependent;
         IMutableNavigation IMutableForeignKey.HasPrincipalToDependent(string name) => HasPrincipalToDependent(name);
-
-        bool IForeignKey.IsUnique => IsUnique ?? DefaultIsUnique;
-        bool IForeignKey.IsRequired => IsRequired ?? DefaultIsRequired;
-        DeleteBehavior IForeignKey.DeleteBehavior => DeleteBehavior ?? DefaultDeleteBehavior;
 
         public override string ToString()
             => $"'{DeclaringEntityType.DisplayName()}' {Property.Format(Properties)} -> '{PrincipalEntityType.DisplayName()}' {Property.Format(PrincipalKey.Properties)}";
@@ -221,14 +355,14 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 return false;
             }
 
-            if (dependentProperties != null
+            if ((dependentProperties != null)
                 && !CanPropertiesBeRequired(dependentProperties, required, dependentEntityType, true))
             {
                 return false;
             }
 
-            if (principalProperties != null
-                && dependentProperties != null
+            if ((principalProperties != null)
+                && (dependentProperties != null)
                 && !AreCompatible(
                     principalProperties,
                     dependentProperties,
@@ -247,9 +381,9 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             Check.NotNull(principalType, nameof(principalType));
             Check.NotNull(dependentType, nameof(dependentType));
 
-            return (unique == null || ((IForeignKey)this).IsUnique == unique)
-                   && PrincipalEntityType == principalType
-                   && DeclaringEntityType == dependentType;
+            return ((unique == null) || (IsUnique == unique))
+                   && (PrincipalEntityType == principalType)
+                   && (DeclaringEntityType == dependentType);
         }
 
         public static bool CanPropertiesBeRequired(
@@ -267,7 +401,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 return true;
             }
 
-            var nullableProperties = properties.Where(p => ((IProperty)p).ClrType.IsNullableType()).ToList();
+            var nullableProperties = properties.Where(p => p.ClrType.IsNullableType()).ToList();
             if (!nullableProperties.Any())
             {
                 if (shouldThrow)
@@ -330,5 +464,11 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         private static bool ArePropertyTypesCompatible(IReadOnlyList<IProperty> principalProperties, IReadOnlyList<IProperty> dependentProperties)
             => principalProperties.Select(p => p.ClrType.UnwrapNullableType()).SequenceEqual(
                 dependentProperties.Select(p => p.ClrType.UnwrapNullableType()));
+
+        // Note: This is set and used only by IdentityMapFactoryFactory, which ensures thread-safety
+        public virtual object DependentKeyValueFactory { get; set; }
+
+        // Note: This is set and used only by IdentityMapFactoryFactory, which ensures thread-safety
+        public virtual Func<IDependentsMap> DependentsMapFactory { get; set; }
     }
 }

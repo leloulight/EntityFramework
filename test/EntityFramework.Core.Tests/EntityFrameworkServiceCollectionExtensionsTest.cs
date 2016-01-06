@@ -3,7 +3,6 @@
 
 using System;
 using System.Linq;
-using Microsoft.Data.Entity.ChangeTracking;
 using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
@@ -46,15 +45,10 @@ namespace Microsoft.Data.Entity.Tests
             VerifySingleton<IDbSetFinder>();
             VerifySingleton<IDbSetInitializer>();
             VerifySingleton<IDbSetSource>();
-            VerifySingleton<IKeyValueFactorySource>();
             VerifySingleton<ICollectionTypeFactory>();
             VerifySingleton<IEntityMaterializerSource>();
             VerifySingleton<IMemberMapper>();
             VerifySingleton<IFieldMatcher>();
-            VerifySingleton<IOriginalValuesFactory>();
-            VerifySingleton<IRelationshipsSnapshotFactory>();
-            VerifySingleton<IStoreGeneratedValuesFactory>();
-            VerifySingleton<IEntityEntryMetadataServices>();
             VerifySingleton<ILoggerFactory>();
             VerifySingleton<ICoreConventionSetBuilder>();
             VerifySingleton<LoggingModelValidator>();

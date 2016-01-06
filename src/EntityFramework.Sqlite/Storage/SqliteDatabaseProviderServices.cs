@@ -8,6 +8,7 @@ using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Infrastructure.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
+using Microsoft.Data.Entity.Metadata.Conventions;
 using Microsoft.Data.Entity.Metadata.Conventions.Internal;
 using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Migrations;
@@ -33,7 +34,7 @@ namespace Microsoft.Data.Entity.Storage
         public override string InvariantName => GetType().GetTypeInfo().Assembly.GetName().Name;
         public override IDatabaseCreator Creator => GetService<SqliteDatabaseCreator>();
         public override IHistoryRepository HistoryRepository => GetService<SqliteHistoryRepository>();
-        public override ISqlGenerator SqlGenerator => GetService<SqliteSqlGenerator>();
+        public override ISqlGenerationHelper SqlGenerationHelper => GetService<SqliteSqlGenerationHelper>();
         public override IMigrationsSqlGenerator MigrationsSqlGenerator => GetService<SqliteMigrationsSqlGenerator>();
         public override IModelSource ModelSource => GetService<SqliteModelSource>();
         public override IRelationalConnection RelationalConnection => GetService<SqliteRelationalConnection>();
@@ -47,7 +48,7 @@ namespace Microsoft.Data.Entity.Storage
         public override IMethodCallTranslator CompositeMethodCallTranslator => GetService<SqliteCompositeMethodCallTranslator>();
         public override IMemberTranslator CompositeMemberTranslator => GetService<SqliteCompositeMemberTranslator>();
         public override IMigrationsAnnotationProvider MigrationsAnnotationProvider => GetService<SqliteMigrationsAnnotationProvider>();
-        public override ISqlQueryGeneratorFactory SqlQueryGeneratorFactory => GetService<SqliteQuerySqlGeneratorFactory>();
+        public override IQuerySqlGeneratorFactory QuerySqlGeneratorFactory => GetService<SqliteQuerySqlGeneratorFactory>();
         public override IModelValidator ModelValidator => GetService<SqliteModelValidator>();
     }
 }

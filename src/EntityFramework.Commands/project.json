@@ -17,10 +17,34 @@
     "EntityFramework.Relational.Design": "7.0.0-rc1-final"
   },
   "frameworks": {
+<<<<<<< HEAD
     "net451": {},
     "dnx451": {
       "dependencies": {
         "Microsoft.AspNet.Hosting.Abstractions": "1.0.0-rc1-final",
+=======
+    "net451": {
+      "frameworkAssemblies": {
+        "System.ComponentModel.DataAnnotations": "4.0.0.0",
+        "System.IO": {
+          "version": "4.0.0.0",
+          "type": "build"
+        },
+        "System.Text.Encoding": {
+          "version": "4.0.0.0",
+          "type": "build"
+        },
+        "System.Threading.Tasks": {
+          "version": "4.0.0.0",
+          "type": "build"
+        }
+      }
+    },
+    "dnx451": {
+      "dependencies": {
+        "Microsoft.AspNet.Hosting.Abstractions": "1.0.0-*",
+        "Microsoft.Dnx.Runtime": "1.0.0-*",
+>>>>>>> refs/remotes/aspnet/dev
         "Microsoft.Extensions.CommandLineUtils.Sources": {
           "version": "1.0.0-rc1-final",
           "type": "build"
@@ -30,13 +54,24 @@
     },
     "dnxcore50": {
       "dependencies": {
+<<<<<<< HEAD
         "Microsoft.AspNet.Hosting.Abstractions": "1.0.0-rc1-final",
+=======
+        "Microsoft.AspNet.Hosting.Abstractions": "1.0.0-*",
+        "Microsoft.Dnx.Runtime": "1.0.0-*",
+>>>>>>> refs/remotes/aspnet/dev
         "Microsoft.Extensions.CommandLineUtils.Sources": {
           "version": "1.0.0-rc1-final",
           "type": "build"
         },
+<<<<<<< HEAD
         "Microsoft.Extensions.PlatformAbstractions": "1.0.0-rc1-final",
         "System.Console": "4.0.0-beta-23516"
+=======
+        "Microsoft.Extensions.PlatformAbstractions": "1.0.0-*",
+        "System.Console": "4.0.0-*",
+        "System.IO.FileSystem": "4.0.1-*"
+>>>>>>> refs/remotes/aspnet/dev
       }
     },
     "netcore50": {

@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Linq;
-using Microsoft.Data.Entity.Metadata.Conventions;
 using Xunit;
 
 namespace Microsoft.Data.Entity.Metadata.Internal
@@ -56,6 +55,6 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         }
 
         private InternalMetadataBuilder<Model> CreateInternalMetadataBuilder()
-            => new InternalModelBuilder(new Model(), new ConventionSet());
+            => new InternalModelBuilder(new Model());
     }
 }

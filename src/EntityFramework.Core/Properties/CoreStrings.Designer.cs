@@ -21,7 +21,7 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// A circular dependency was detected: {cycle}.
+        /// Unable to save changes because a circular dependency was detected in the data to be saved: '{cycle}'.
         /// </summary>
         public static string CircularDependency([CanBeNull] object cycle)
         {
@@ -61,14 +61,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The instance of entity type '{entityType}' cannot be tracked because it has an invalid (e.g. null or CLR default) primary key. Either set the key explicitly or consider using an IValueGenerator to generate unique key values.
-        /// </summary>
-        public static string InvalidPrimaryKey([CanBeNull] object entityType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("InvalidPrimaryKey", "entityType"), entityType);
-        }
-
-        /// <summary>
         /// Cannot start tracking InternalEntityEntry for entity type '{entityType}' because it was created by a different StateManager instance.
         /// </summary>
         public static string WrongStateManager([CanBeNull] object entityType)
@@ -93,51 +85,11 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Sequence contains no elements.
-        /// </summary>
-        public static string EmptySequence
-        {
-            get { return GetString("EmptySequence"); }
-        }
-
-        /// <summary>
-        /// Sequence contains more than one element.
-        /// </summary>
-        public static string MoreThanOneElement
-        {
-            get { return GetString("MoreThanOneElement"); }
-        }
-
-        /// <summary>
-        /// Sequence contains more than one matching element.
-        /// </summary>
-        public static string MoreThanOneMatch
-        {
-            get { return GetString("MoreThanOneMatch"); }
-        }
-
-        /// <summary>
-        /// Sequence contains no matching element.
-        /// </summary>
-        public static string NoMatch
-        {
-            get { return GetString("NoMatch"); }
-        }
-
-        /// <summary>
         /// The collection argument '{argumentName}' must contain at least one element.
         /// </summary>
         public static string CollectionArgumentIsEmpty([CanBeNull] object argumentName)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("CollectionArgumentIsEmpty", "argumentName"), argumentName);
-        }
-
-        /// <summary>
-        /// The properties provided for the argument '{argumentName}' are declared on different entity types.
-        /// </summary>
-        public static string InconsistentEntityType([CanBeNull] object argumentName)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("InconsistentEntityType", "argumentName"), argumentName);
         }
 
         /// <summary>
@@ -269,14 +221,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Multiple potential primary key properties named '{property}' but differing only by case were found on entity type '{entityType}'. Configure the primary key explicitly using the SetKey fluent API.
-        /// </summary>
-        public static string MultiplePropertiesMatchedAsKeys([CanBeNull] object property, [CanBeNull] object entityType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("MultiplePropertiesMatchedAsKeys", "property", "entityType"), property, entityType);
-        }
-
-        /// <summary>
         /// The '{property}' on entity type '{entityType}' does not have a value set and no value generator is available for properties of type '{propertyType}'. Either set a value for the property before adding the entity or configure a value generator for properties of type '{propertyType}'.
         /// </summary>
         public static string NoValueGenerator([CanBeNull] object property, [CanBeNull] object entityType, [CanBeNull] object propertyType)
@@ -290,30 +234,6 @@ namespace Microsoft.Data.Entity.Internal
         public static string TempValuePersists([CanBeNull] object property, [CanBeNull] object entityType, [CanBeNull] object state)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("TempValuePersists", "property", "entityType", "state"), property, entityType, state);
-        }
-
-        /// <summary>
-        /// A property with the storage name '{property}' on entity type '{entityType}' could not be found. Ensure that the property exists, has been included in the model, and has been configured with storage name specified.
-        /// </summary>
-        public static string PropertyWithStorageNameNotFound([CanBeNull] object property, [CanBeNull] object entityType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("PropertyWithStorageNameNotFound", "property", "entityType"), property, entityType);
-        }
-
-        /// <summary>
-        /// CurrentValues are always in sync with the entity state.
-        /// </summary>
-        public static string CurrentValuesAlwaysInSync
-        {
-            get { return GetString("CurrentValuesAlwaysInSync"); }
-        }
-
-        /// <summary>
-        /// An error occurred while running a database operation. See InnerException for details.
-        /// </summary>
-        public static string DatabaseException
-        {
-            get { return GetString("DatabaseException"); }
         }
 
         /// <summary>
@@ -565,14 +485,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The collection argument '{argumentName}' must not contain any null references.
-        /// </summary>
-        public static string CollectionArgumentContainsNulls([CanBeNull] object argumentName)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("CollectionArgumentContainsNulls", "argumentName"), argumentName);
-        }
-
-        /// <summary>
         /// The specified entity type '{entityType}' is invalid. It should be either the dependent entity type '{dependentType}' or the principal entity type '{principalType}' or an entity type derived from one of them.
         /// </summary>
         public static string EntityTypeNotInRelationship([CanBeNull] object entityType, [CanBeNull] object dependentType, [CanBeNull] object principalType)
@@ -645,14 +557,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Compiled query expression.
-        /// </summary>
-        public static string LogCompiledQueryFunction
-        {
-            get { return GetString("LogCompiledQueryFunction"); }
-        }
-
-        /// <summary>
         /// Including navigation: '{navigation}'
         /// </summary>
         public static string LogIncludingNavigation([CanBeNull] object navigation)
@@ -717,38 +621,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The value for the configuration entry '{configurationKey}' is '{invalidValue}', but an integer is expected.
-        /// </summary>
-        public static string IntegerConfigurationValueFormatError([CanBeNull] object configurationKey, [CanBeNull] object invalidValue)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("IntegerConfigurationValueFormatError", "configurationKey", "invalidValue"), configurationKey, invalidValue);
-        }
-
-        /// <summary>
-        /// No connection string named '{connectionString}' could be found in configuration.
-        /// </summary>
-        public static string ConnectionStringNotFound([CanBeNull] object connectionString)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("ConnectionStringNotFound", "connectionString"), connectionString);
-        }
-
-        /// <summary>
-        /// Unhandled binding type: '{type}'.
-        /// </summary>
-        public static string UnhandledBindingType([CanBeNull] object type)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("UnhandledBindingType", "type"), type);
-        }
-
-        /// <summary>
-        /// Unhandled expression type: '{type}'.
-        /// </summary>
-        public static string UnhandledExpressionType([CanBeNull] object type)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("UnhandledExpressionType", "type"), type);
-        }
-
-        /// <summary>
         /// The key {key} on entity type '{entityType}' contains properties in shadow state - {shadowProperties} and it is referenced by the foreign key {foreignKey} from entity type '{referencingEntityType}'."
         /// </summary>
         public static string ReferencedShadowKey([CanBeNull] object key, [CanBeNull] object entityType, [CanBeNull] object shadowProperties, [CanBeNull] object foreignKey, [CanBeNull] object referencingEntityType)
@@ -765,11 +637,11 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// An exception was thrown while attempting to evaluate the LINQ query parameter expression '{expression}'.
+        /// An exception was thrown while attempting to evaluate a LINQ query parameter expression. To show aditional information call EnableSensitiveDataLogging() when overriding DbContext.OnConfiguring.
         /// </summary>
-        public static string ExpressionParameterizationException([CanBeNull] object expression)
+        public static string ExpressionParameterizationException
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("ExpressionParameterizationException", "expression"), expression);
+            get { return GetString("ExpressionParameterizationException"); }
         }
 
         /// <summary>
@@ -781,11 +653,11 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The derived type '{derivedType}' cannot have keys other than those declared on the root type.
+        /// The derived type '{derivedType}' cannot have keys other than those declared on the root type '{rootType}'.
         /// </summary>
-        public static string DerivedEntityTypeKey([CanBeNull] object derivedType)
+        public static string DerivedEntityTypeKey([CanBeNull] object derivedType, [CanBeNull] object rootType)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("DerivedEntityTypeKey", "derivedType"), derivedType);
+            return string.Format(CultureInfo.CurrentCulture, GetString("DerivedEntityTypeKey", "derivedType", "rootType"), derivedType, rootType);
         }
 
         /// <summary>
@@ -861,7 +733,7 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The property '{property}' on entity type '{entityType}' cannot be marked as nullable/optional because the property is a part of the primary key. Any property can be marked as non-nullable/required, but only properties of nullable types and which are not part of primary key can be marked as nullable/optional.
+        /// The property '{property}' on entity type '{entityType}' cannot be marked as nullable/optional because the property is a part of a key. Any property can be marked as non-nullable/required, but only properties of nullable types and which are not part of a key can be marked as nullable/optional.
         /// </summary>
         public static string CannotBeNullablePK([CanBeNull] object property, [CanBeNull] object entityType)
         {
@@ -1114,6 +986,126 @@ namespace Microsoft.Data.Entity.Internal
         public static string EntityTypeInUse([CanBeNull] object entityType)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("EntityTypeInUse", "entityType"), entityType);
+        }
+
+        /// <summary>
+        /// The entity type '{entityType}' was not found. Ensure that the entity type has been added to the model.
+        /// </summary>
+        public static string EntityTypeNotFound([CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("EntityTypeNotFound", "entityType"), entityType);
+        }
+
+        /// <summary>
+        /// Unhandled operation: MemberInitExpression binding is not a MemberAssignment
+        /// </summary>
+        public static string InvalidMemberInitBinding
+        {
+            get { return GetString("InvalidMemberInitBinding"); }
+        }
+
+        /// <summary>
+        /// Unhandled expression type: {expressionType}
+        /// </summary>
+        public static string UnhandledExpressionType([CanBeNull] object expressionType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("UnhandledExpressionType", "expressionType"), expressionType);
+        }
+
+        /// <summary>
+        /// Unhandled node type: {nodeType}
+        /// </summary>
+        public static string UnhandledNodeType([CanBeNull] object nodeType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("UnhandledNodeType", "nodeType"), nodeType);
+        }
+
+        /// <summary>
+        /// Unable to create or track an entity of type '{entityType}' because it has an null primary or alternate key value.
+        /// </summary>
+        public static string InvalidKeyValue([CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("InvalidKeyValue", "entityType"), entityType);
+        }
+
+        /// <summary>
+        /// Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data, this mode should only be enabled during development.
+        /// </summary>
+        public static string SensitiveDataLoggingEnabled
+        {
+            get { return GetString("SensitiveDataLoggingEnabled"); }
+        }
+
+        /// <summary>
+        /// An exception was thrown while attempting to evaluate the LINQ query parameter expression '{expression}'.
+        /// </summary>
+        public static string ExpressionParameterizationExceptionSensitive([CanBeNull] object expression)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ExpressionParameterizationExceptionSensitive", "expression"), expression);
+        }
+
+        /// <summary>
+        /// There are multiple navigations in entity type '{entityType}' which are pointing to same set of properties - '{propertyList}' using ForeignKeyAttribute.
+        /// </summary>
+        public static string MultipleNavigationsSameFk([CanBeNull] object entityType, [CanBeNull] object propertyList)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("MultipleNavigationsSameFk", "entityType", "propertyList"), entityType, propertyList);
+        }
+
+        /// <summary>
+        /// The entity type '{entityType}' should derive from '{baseEntityType}' to reflect the hierarchy of the corresponding CLR types.
+        /// </summary>
+        public static string InconsistentInheritance([CanBeNull] object entityType, [CanBeNull] object baseEntityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("InconsistentInheritance", "entityType", "baseEntityType"), entityType, baseEntityType);
+        }
+
+        /// <summary>
+        /// You are configuring a relationship between '{dependentEntityType}' and '{principalEntityType}' but have specified a foreign key on '{entityType}'. The foreign key must be defined on a type that is part of the relationship.
+        /// </summary>
+        public static string DependentEntityTypeNotInRelationship([CanBeNull] object dependentEntityType, [CanBeNull] object principalEntityType, [CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("DependentEntityTypeNotInRelationship", "dependentEntityType", "principalEntityType", "entityType"), dependentEntityType, principalEntityType, entityType);
+        }
+
+        /// <summary>
+        /// You are configuring a relationship between '{dependentEntityType}' and '{principalEntityType}' but have specified a foreign key targetting '{entityType}'. The foreign key must be targetting a type that is part of the relationship.
+        /// </summary>
+        public static string PrincipalEntityTypeNotInRelationship([CanBeNull] object dependentEntityType, [CanBeNull] object principalEntityType, [CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("PrincipalEntityTypeNotInRelationship", "dependentEntityType", "principalEntityType", "entityType"), dependentEntityType, principalEntityType, entityType);
+        }
+
+        /// <summary>
+        /// The property '{property}' cannot be part of a foreign key on '{entityType}' because it is contained in a key defined on a base entity type.
+        /// </summary>
+        public static string ForeignKeyPropertyInKey([CanBeNull] object property, [CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ForeignKeyPropertyInKey", "property", "entityType"), property, entityType);
+        }
+
+        /// <summary>
+        /// The property '{property}' cannot be part of a key on '{entityType}' because it is contained in a foreign key defined on a derived entity type.
+        /// </summary>
+        public static string KeyPropertyInForeignKey([CanBeNull] object property, [CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("KeyPropertyInForeignKey", "property", "entityType"), property, entityType);
+        }
+
+        /// <summary>
+        /// A key on entity type '{entityType}' cannot contain the property '{property}' because it is nullable/optional. All properties on which a key is declared must be marked as non-nullable/required.
+        /// </summary>
+        public static string NullableKey([CanBeNull] object entityType, [CanBeNull] object property)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("NullableKey", "entityType", "property"), entityType, property);
+        }
+
+        // <summary>
+        // A second operation started on this context before a previous operation completed. Any instance members are not guaranteed to be thread safe.
+        // </summary>
+        public static string ConcurrentMethodInvocation
+        {
+            get { return GetString("ConcurrentMethodInvocation"); }
         }
 
         private static string GetString(string name, params string[] formatterNames)

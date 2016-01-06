@@ -7,8 +7,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using JetBrains.Annotations;
-using Microsoft.Data.Entity.ChangeTracking.Internal;
-using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Query.ExpressionVisitors;
@@ -22,7 +20,6 @@ namespace Microsoft.Data.Entity.Query.Internal
         private readonly IMaterializerFactory _materializerFactory;
 
         public InMemoryQueryModelVisitor(
-            [NotNull] IModel model,
             [NotNull] IQueryOptimizer queryOptimizer,
             [NotNull] INavigationRewritingExpressionVisitorFactory navigationRewritingExpressionVisitorFactory,
             [NotNull] ISubQueryMemberPushDownExpressionVisitor subQueryMemberPushDownExpressionVisitor,
@@ -40,7 +37,6 @@ namespace Microsoft.Data.Entity.Query.Internal
             [NotNull] IMaterializerFactory materializerFactory,
             [NotNull] QueryCompilationContext queryCompilationContext)
             : base(
-                Check.NotNull(model, nameof(model)),
                 Check.NotNull(queryOptimizer, nameof(queryOptimizer)),
                 Check.NotNull(navigationRewritingExpressionVisitorFactory, nameof(navigationRewritingExpressionVisitorFactory)),
                 Check.NotNull(subQueryMemberPushDownExpressionVisitor, nameof(subQueryMemberPushDownExpressionVisitor)),
@@ -72,8 +68,7 @@ namespace Microsoft.Data.Entity.Query.Internal
             Check.NotNull(resultType, nameof(resultType));
             Check.NotNull(accessorLambda, nameof(accessorLambda));
 
-            var primaryKeyParameter = Expression.Parameter(typeof(IKeyValue), "entityKey");
-            var relatedKeyFactoryParameter = Expression.Parameter(typeof(Func<ValueBuffer, IKeyValue>), "relatedKeyFactory");
+            var keyComparerParameter = Expression.Parameter(typeof(IIncludeKeyComparer), "keyComparer");
             var navigationPath = includeSpecification.NavigationPath;
 
             Expression
@@ -99,11 +94,9 @@ namespace Microsoft.Data.Entity.Query.Internal
                                             _getRelatedValueBuffersMethodInfo,
                                             QueryContextParameter,
                                             Expression.Constant(targetType),
-                                            primaryKeyParameter,
-                                            relatedKeyFactoryParameter,
+                                            keyComparerParameter,
                                             materializer),
-                                        primaryKeyParameter,
-                                        relatedKeyFactoryParameter);
+                                        keyComparerParameter);
                                 })),
                     Expression.Constant(querySourceRequiresTracking));
         }
@@ -144,16 +137,15 @@ namespace Microsoft.Data.Entity.Query.Internal
         private static IEnumerable<EntityLoadInfo> GetRelatedValueBuffers(
             QueryContext queryContext,
             IEntityType targetType,
-            IKeyValue primaryKeyValue,
-            Func<ValueBuffer, IKeyValue> relatedKeyFactory,
+            IIncludeKeyComparer keyComparer,
             Func<IEntityType, ValueBuffer, object> materializer)
         {
             return ((InMemoryQueryContext)queryContext).Store
                 .GetTables(targetType)
                 .SelectMany(t =>
-                    t.Select(vs => new EntityLoadInfo(
+                    t.Rows.Select(vs => new EntityLoadInfo(
                         new ValueBuffer(vs), vb => materializer(t.EntityType, vb)))
-                        .Where(eli => relatedKeyFactory(eli.ValueBuffer).Equals(primaryKeyValue)));
+                        .Where(eli => keyComparer.ShouldInclude(eli.ValueBuffer)));
         }
 
         public static readonly MethodInfo EntityQueryMethodInfo
@@ -164,7 +156,7 @@ namespace Microsoft.Data.Entity.Query.Internal
         private static IEnumerable<TEntity> EntityQuery<TEntity>(
             QueryContext queryContext,
             IEntityType entityType,
-            KeyValueFactory keyValueFactory,
+            IKey key,
             Func<IEntityType, ValueBuffer, object> materializer,
             bool queryStateManager)
             where TEntity : class
@@ -172,19 +164,19 @@ namespace Microsoft.Data.Entity.Query.Internal
             return ((InMemoryQueryContext)queryContext).Store
                 .GetTables(entityType)
                 .SelectMany(t =>
-                    t.Select(vs =>
+                    t.Rows.Select(vs =>
                         {
                             var valueBuffer = new ValueBuffer(vs);
-                            var keyValue = keyValueFactory.Create(valueBuffer);
 
                             return (TEntity)queryContext
                                 .QueryBuffer
                                 .GetEntity(
-                                    keyValue,
+                                    key,
                                     new EntityLoadInfo(
                                         valueBuffer,
                                         vr => materializer(t.EntityType, vr)),
-                                    queryStateManager);
+                                    queryStateManager, 
+                                    throwOnNullKey: false);
                         }));
         }
 
@@ -199,7 +191,7 @@ namespace Microsoft.Data.Entity.Query.Internal
         {
             return ((InMemoryQueryContext)queryContext).Store
                 .GetTables(entityType)
-                .SelectMany(t => t.Select(vs => new ValueBuffer(vs)));
+                .SelectMany(t => t.Rows.Select(vs => new ValueBuffer(vs)));
         }
     }
 }

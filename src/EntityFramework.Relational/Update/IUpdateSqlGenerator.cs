@@ -10,8 +10,14 @@ namespace Microsoft.Data.Entity.Update
     {
         string GenerateNextSequenceValueOperation([NotNull] string name, [CanBeNull] string schema);
         void AppendBatchHeader([NotNull] StringBuilder commandStringBuilder);
-        void AppendDeleteOperation([NotNull] StringBuilder commandStringBuilder, [NotNull] ModificationCommand command);
-        void AppendInsertOperation([NotNull] StringBuilder commandStringBuilder, [NotNull] ModificationCommand command);
-        void AppendUpdateOperation([NotNull] StringBuilder commandStringBuilder, [NotNull] ModificationCommand command);
+
+        ResultSetMapping AppendDeleteOperation(
+            [NotNull] StringBuilder commandStringBuilder, [NotNull] ModificationCommand command, int commandPosition);
+
+        ResultSetMapping AppendInsertOperation(
+            [NotNull] StringBuilder commandStringBuilder, [NotNull] ModificationCommand command, int commandPosition);
+
+        ResultSetMapping AppendUpdateOperation(
+            [NotNull] StringBuilder commandStringBuilder, [NotNull] ModificationCommand command, int commandPosition);
     }
 }

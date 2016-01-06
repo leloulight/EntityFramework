@@ -143,11 +143,37 @@ namespace Microsoft.Data.Entity.Tests.Infrastructure
             Validate(model);
         }
 
+        [Fact]
+        public virtual void Pases_on_correct_inheritance()
+        {
+            var model = new Model();
+            var entityA = model.AddEntityType(typeof(A));
+            SetPrimaryKey(entityA);
+            var entityD = model.AddEntityType(typeof(D));
+            SetBaseType(entityD, entityA);
+
+            Validate(model);
+        }
+
+        protected virtual void SetBaseType(EntityType entityType, EntityType baseEntityType) => entityType.HasBaseType(baseEntityType);
+
+        [Fact]
+        public virtual void Detects_base_type_not_set()
+        {
+            var model = new Model();
+            var entityA = model.AddEntityType(typeof(A));
+            SetPrimaryKey(entityA);
+            var entityD = model.AddEntityType(typeof(D));
+            SetPrimaryKey(entityD);
+
+            VerifyError(CoreStrings.InconsistentInheritance(entityD.DisplayName(), entityA.DisplayName()), model);
+        }
+
         protected Key CreateKey(EntityType entityType, int startingPropertyIndex = -1, int propertyCount = 1)
         {
             if (startingPropertyIndex == -1)
             {
-                startingPropertyIndex = entityType.PropertyCount - 1;
+                startingPropertyIndex = entityType.PropertyCount() - 1;
             }
             var keyProperties = new Property[propertyCount];
             for (var i = 0; i < propertyCount; i++)
@@ -157,6 +183,7 @@ namespace Microsoft.Data.Entity.Tests.Infrastructure
                 property.IsShadowProperty = false;
                 keyProperties[i] = property;
                 keyProperties[i].RequiresValueGenerator = true;
+                keyProperties[i].IsNullable = false;
             }
             return entityType.AddKey(keyProperties);
         }
@@ -175,7 +202,6 @@ namespace Microsoft.Data.Entity.Tests.Infrastructure
         {
             var foreignKey = dependEntityType.AddForeignKey(dependentProperties, principalKey, principalKey.DeclaringEntityType);
             foreignKey.IsUnique = true;
-            foreignKey.IsRequired = false;
             foreach (var property in dependentProperties)
             {
                 property.RequiresValueGenerator = false;
@@ -194,7 +220,17 @@ namespace Microsoft.Data.Entity.Tests.Infrastructure
             public int? P3 { get; set; }
         }
 
-        protected class B : A
+        protected class B
+        {
+            public int Id { get; set; }
+
+            public int? P0 { get; set; }
+            public int? P1 { get; set; }
+            public int? P2 { get; set; }
+            public int? P3 { get; set; }
+        }
+
+        protected class D : A
         {
         }
 

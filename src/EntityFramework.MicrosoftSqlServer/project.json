@@ -23,10 +23,18 @@
     "net451": {},
     "dotnet5.4": {
       "dependencies": {
+<<<<<<< HEAD
         "System.Data.SqlClient": "4.0.0-beta-23516",
         "System.Text.Encoding.CodePages": "4.0.1-beta-23516",
         "System.Threading.Thread": "4.0.0-beta-23516",
         "System.Threading.ThreadPool": "4.0.10-beta-23516"
+=======
+        "System.Data.SqlClient": "4.0.0-*",
+        "System.Net.Security": "4.0.0-*",
+        "System.Text.Encoding.CodePages": "4.0.1-*",
+        "System.Threading.Thread": "4.0.0-*",
+        "System.Threading.ThreadPool": "4.0.10-*"
+>>>>>>> refs/remotes/aspnet/dev
       }
     },
     "netcore50": {

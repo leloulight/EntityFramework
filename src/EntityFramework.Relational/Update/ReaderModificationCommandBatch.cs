@@ -19,37 +19,31 @@ namespace Microsoft.Data.Entity.Update
     {
         private readonly IRelationalCommandBuilderFactory _commandBuilderFactory;
         private readonly IRelationalValueBufferFactoryFactory _valueBufferFactoryFactory;
-
         private readonly List<ModificationCommand> _modificationCommands = new List<ModificationCommand>();
-
-        protected virtual StringBuilder CachedCommandText { get; [param: NotNull] set; }
-
-        protected virtual int LastCachedCommandIndex { get; set; }
 
         protected ReaderModificationCommandBatch(
             [NotNull] IRelationalCommandBuilderFactory commandBuilderFactory,
-            [NotNull] ISqlGenerator sqlGenerator,
+            [NotNull] ISqlGenerationHelper sqlGenerationHelper,
             [NotNull] IUpdateSqlGenerator updateSqlGenerator,
             [NotNull] IRelationalValueBufferFactoryFactory valueBufferFactoryFactory)
         {
             Check.NotNull(commandBuilderFactory, nameof(commandBuilderFactory));
-            Check.NotNull(sqlGenerator, nameof(sqlGenerator));
+            Check.NotNull(sqlGenerationHelper, nameof(sqlGenerationHelper));
             Check.NotNull(updateSqlGenerator, nameof(updateSqlGenerator));
             Check.NotNull(valueBufferFactoryFactory, nameof(valueBufferFactoryFactory));
 
             _commandBuilderFactory = commandBuilderFactory;
-
-            SqlGenerator = sqlGenerator;
+            SqlGenerationHelper = sqlGenerationHelper;
             UpdateSqlGenerator = updateSqlGenerator;
-
             _valueBufferFactoryFactory = valueBufferFactoryFactory;
         }
 
-        protected virtual ISqlGenerator SqlGenerator { get; }
-
+        protected virtual StringBuilder CachedCommandText { get; [param: NotNull] set; }
+        protected virtual int LastCachedCommandIndex { get; set; }
+        protected virtual ISqlGenerationHelper SqlGenerationHelper { get; }
         protected virtual IUpdateSqlGenerator UpdateSqlGenerator { get; }
-
         public override IReadOnlyList<ModificationCommand> ModificationCommands => _modificationCommands;
+        protected virtual IList<ResultSetMapping> CommandResultSet { get; } = new List<ResultSetMapping>();
 
         public override bool AddCommand(ModificationCommand modificationCommand)
         {
@@ -66,11 +60,13 @@ namespace Microsoft.Data.Entity.Update
             }
 
             _modificationCommands.Add(modificationCommand);
+            CommandResultSet.Add(ResultSetMapping.LastInResultSet);
 
             if (!IsCommandTextValid())
             {
                 ResetCommandText();
                 _modificationCommands.RemoveAt(_modificationCommands.Count - 1);
+                CommandResultSet.RemoveAt(CommandResultSet.Count - 1);
                 return false;
             }
 
@@ -105,13 +101,16 @@ namespace Microsoft.Data.Entity.Update
             switch (newModificationCommand.EntityState)
             {
                 case EntityState.Added:
-                    UpdateSqlGenerator.AppendInsertOperation(CachedCommandText, newModificationCommand);
+                    CommandResultSet[commandPosition] =
+                        UpdateSqlGenerator.AppendInsertOperation(CachedCommandText, newModificationCommand, commandPosition);
                     break;
                 case EntityState.Modified:
-                    UpdateSqlGenerator.AppendUpdateOperation(CachedCommandText, newModificationCommand);
+                    CommandResultSet[commandPosition] =
+                        UpdateSqlGenerator.AppendUpdateOperation(CachedCommandText, newModificationCommand, commandPosition);
                     break;
                 case EntityState.Deleted:
-                    UpdateSqlGenerator.AppendDeleteOperation(CachedCommandText, newModificationCommand);
+                    CommandResultSet[commandPosition] =
+                        UpdateSqlGenerator.AppendDeleteOperation(CachedCommandText, newModificationCommand, commandPosition);
                     break;
             }
 
@@ -129,7 +128,7 @@ namespace Microsoft.Data.Entity.Update
                 if (columnModification.ParameterName != null)
                 {
                     commandBuilder.AddParameter(
-                        SqlGenerator.GenerateParameterName(columnModification.ParameterName),
+                        SqlGenerationHelper.GenerateParameterName(columnModification.ParameterName),
                         columnModification.Value,
                         columnModification.Property);
                 }
@@ -137,13 +136,13 @@ namespace Microsoft.Data.Entity.Update
                 if (columnModification.OriginalParameterName != null)
                 {
                     commandBuilder.AddParameter(
-                        SqlGenerator.GenerateParameterName(columnModification.OriginalParameterName),
+                        SqlGenerationHelper.GenerateParameterName(columnModification.OriginalParameterName),
                         columnModification.OriginalValue,
                         columnModification.Property);
                 }
             }
 
-            return commandBuilder.BuildRelationalCommand();
+            return commandBuilder.Build();
         }
 
         public override void Execute(IRelationalConnection connection)
@@ -179,7 +178,7 @@ namespace Microsoft.Data.Entity.Update
 
             try
             {
-                using (var dataReader = await command.ExecuteReaderAsync(connection, cancellationToken))
+                using (var dataReader = await command.ExecuteReaderAsync(connection, cancellationToken: cancellationToken))
                 {
                     await ConsumeAsync(dataReader.DbDataReader, cancellationToken);
                 }

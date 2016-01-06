@@ -11,6 +11,7 @@ using Microsoft.Data.Entity.Metadata.Internal;
 using Xunit;
 
 // ReSharper disable once CheckNamespace
+
 namespace Microsoft.Data.Entity.Tests
 {
     public abstract partial class ModelBuilderTest
@@ -1670,6 +1671,132 @@ namespace Microsoft.Data.Entity.Tests
 
                 var newForeignKey = model.FindEntityType(typeof(DependentEntity)).GetForeignKeys().Single();
                 Assert.Equal("PrincipalEntityId", newForeignKey.Properties.Single().Name);
+            }
+
+            [Fact]
+            public virtual void Creates_shadow_property_for_foreign_key_according_to_navigation_to_principal_name_when_present()
+            {
+                var modelBuilder = CreateModelBuilder();
+                var entityB = modelBuilder.Entity<Beta>().Metadata;
+
+                Assert.Equal("FirstNavId", entityB.FindNavigation("FirstNav").ForeignKey.Properties.First().Name);
+                Assert.Equal("SecondNavId", entityB.FindNavigation("SecondNav").ForeignKey.Properties.First().Name);
+            }
+
+            [Fact]
+            public virtual void Creates_shadow_property_for_foreign_key_according_to_target_type_when_navigation_to_principal_name_not_present()
+            {
+                var modelBuilder = CreateModelBuilder();
+                var gamma = modelBuilder.Entity<Gamma>().Metadata;
+
+                Assert.Equal("GammaId", gamma.FindNavigation("Alphas").ForeignKey.Properties.First().Name);
+            }
+
+            [Fact]
+            public virtual void Creates_shadow_FK_property_with_non_shadow_PK()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                // For NonGenericStringTest
+                modelBuilder.Entity<Alpha>();
+
+                modelBuilder.Entity<Beta>(b =>
+                    {
+                        b.HasOne(e => e.FirstNav)
+                            .WithMany()
+                            .HasForeignKey("ShadowId");
+                    });
+
+                Assert.Equal("ShadowId", modelBuilder.Model.FindEntityType(typeof(Beta)).FindNavigation("FirstNav").ForeignKey.Properties.Single().Name);
+            }
+
+            [Fact]
+            public virtual void Does_not_create_shadow_FK_property_with_shadow_PK()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                // For NonGenericStringTest
+                var entityA = modelBuilder.Entity<Alpha>();
+                entityA.Property<int>("ShadowPK");
+                entityA.HasKey("ShadowPK");
+
+                var entityB = modelBuilder.Entity<Beta>();
+
+                var relationship = entityB.HasOne(e => e.FirstNav).WithMany();
+
+                Assert.Equal(
+                    CoreStrings.NoClrProperty("ShadowId", typeof(Beta)),
+                    Assert.Throws<InvalidOperationException>(() => relationship.HasForeignKey("ShadowId")).Message);
+            }
+
+            [Fact]
+            public virtual void Handles_identity_correctly_while_removing_navigation()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Ignore<Delta>();
+                modelBuilder.Entity<Epsilon>().HasOne<Alpha>().WithMany(b => b.Epsilons);
+
+                var property = modelBuilder.Model.FindEntityType(typeof(Epsilon)).FindProperty("Id");
+                Assert.False(property.RequiresValueGenerator);
+                Assert.Equal(ValueGenerated.Never, property.ValueGenerated);
+            }
+
+            [Fact]
+            public virtual void Throws_when_foreign_key_references_shadow_key()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Entity<Order>().HasOne(e => e.Customer).WithMany(e => e.Orders).HasForeignKey(e => e.AnotherCustomerId);
+
+                Assert.Equal(
+                    CoreStrings.ReferencedShadowKey("{'AnotherCustomerId'}", typeof(Customer).FullName, "{'AnotherCustomerId'}", "{'AnotherCustomerId'}", typeof(Order).FullName),
+                    Assert.Throws<InvalidOperationException>(() => modelBuilder.Validate()).Message);
+            }
+
+            public virtual void Can_exclude_navigation_pointed_by_foreign_key_attribute_from_explcit_configuration()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Ignore<Delta>();
+                modelBuilder.Entity<Epsilon>().HasOne<Alpha>().WithMany(b => b.Epsilons);
+
+                var model = modelBuilder.Model;
+
+                Assert.Null(model.FindEntityType(typeof(Epsilon)).FindNavigation("Alpha").ForeignKey.PrincipalToDependent);
+                Assert.Equal("Id", model.FindEntityType(typeof(Epsilon)).FindNavigation("Alpha").ForeignKey.Properties.First().Name);
+
+                Assert.Null(model.FindEntityType(typeof(Alpha)).FindNavigation("Epsilons").ForeignKey.DependentToPrincipal);
+                Assert.Equal("AlphaId1", model.FindEntityType(typeof(Alpha)).FindNavigation("Epsilons").ForeignKey.Properties.First().Name);
+            }
+
+            [Fact]
+            public virtual void Can_exclude_navigation_with_foreign_key_attribute_from_explcit_configuration()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Ignore<Delta>();
+                modelBuilder.Entity<Eta>().HasOne<Alpha>().WithMany(b => b.Etas);
+
+                var model = modelBuilder.Model;
+
+                Assert.Null(model.FindEntityType(typeof(Eta)).FindNavigation("Alpha").ForeignKey.PrincipalToDependent);
+                Assert.Equal("Id", model.FindEntityType(typeof(Eta)).FindNavigation("Alpha").ForeignKey.Properties.First().Name);
+
+                Assert.Null(model.FindEntityType(typeof(Alpha)).FindNavigation("Etas").ForeignKey.DependentToPrincipal);
+                Assert.Equal("AlphaId1", model.FindEntityType(typeof(Alpha)).FindNavigation("Etas").ForeignKey.Properties.First().Name);
+            }
+
+            [Fact]
+            public virtual void Can_exclude_navigation_with_foreign_key_attribute_on_principal_type_from_explcit_configuration()
+            {
+                var modelBuilder = CreateModelBuilder();
+                modelBuilder.Ignore<Delta>();
+                modelBuilder.Entity<Theta>().HasOne(e => e.Alpha).WithMany();
+
+                var model = modelBuilder.Model;
+
+                Assert.Null(model.FindEntityType(typeof(Theta)).FindNavigation("Alpha").ForeignKey.PrincipalToDependent);
+                Assert.Equal("AlphaId", model.FindEntityType(typeof(Theta)).FindNavigation("Alpha").ForeignKey.Properties.First().Name);
+
+                Assert.Null(model.FindEntityType(typeof(Alpha)).FindNavigation("Thetas").ForeignKey.DependentToPrincipal);
+                Assert.Equal("Id", model.FindEntityType(typeof(Alpha)).FindNavigation("Thetas").ForeignKey.Properties.First().Name);
             }
         }
     }

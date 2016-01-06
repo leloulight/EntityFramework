@@ -5,15 +5,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.GearsOfWarModel;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Xunit;
+// ReSharper disable ReplaceWithSingleCallToSingle
 
 namespace Microsoft.Data.Entity.FunctionalTests
 {
+    [MonoVersionCondition(Min = "4.2.0", SkipReason = "Queries fail on Mono < 4.2.0 due to differences in the implementation of LINQ")]
     public abstract class GearsOfWarQueryTestBase<TTestStore, TFixture> : IClassFixture<TFixture>, IDisposable
         where TTestStore : TestStore
         where TFixture : GearsOfWarQueryFixtureBase<TTestStore>, new()
     {
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_multiple_one_to_one_and_one_to_many()
         {
             using (var context = CreateContext())
@@ -30,7 +33,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_multiple_one_to_one_and_one_to_many_self_reference()
         {
             using (var context = CreateContext())
@@ -47,7 +50,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_multiple_one_to_one_optional_and_one_to_one_required()
         {
             using (var context = CreateContext())
@@ -59,7 +62,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_multiple_one_to_one_and_one_to_one_and_one_to_many()
         {
             using (var context = CreateContext())
@@ -71,7 +74,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_multiple_circular()
         {
             using (var context = CreateContext())
@@ -81,13 +84,13 @@ namespace Microsoft.Data.Entity.FunctionalTests
 
                 Assert.Equal(5, result.Count);
 
-                var cities = result.Select(g => g.CityOfBirth);
+                var cities = result.Select(g => g.CityOfBirth).ToList();
                 Assert.True(cities.All(c => c != null));
                 Assert.True(cities.All(c => c.BornGears != null));
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_multiple_circular_with_filter()
         {
             using (var context = CreateContext())
@@ -101,7 +104,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_using_alternate_key()
         {
             using (var context = CreateContext())
@@ -118,7 +121,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_multiple_include_then_include()
         {
             var gearAssignedCities = new Dictionary<string, string>();
@@ -223,7 +226,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_navigation_on_derived_type()
         {
             using (var context = CreateContext())
@@ -245,7 +248,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Included()
         {
             using (var context = CreateContext())
@@ -260,16 +263,16 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_with_join_reference1()
         {
             using (var context = CreateContext())
             {
                 var query = context.Gears.Join(
                     context.Tags,
-                    g => new { SquadId = (int?)g.SquadId, Nickname = g.Nickname },
+                    g => new { SquadId = (int?)g.SquadId, g.Nickname },
                     t => new { SquadId = t.GearSquadId, Nickname = t.GearNickName },
-                    (Gear g, CogTag t) => g).Include(g => g.CityOfBirth);
+                    (g, t) => g).Include(g => g.CityOfBirth);
 
                 var result = query.ToList();
                 Assert.Equal(5, result.Count);
@@ -277,7 +280,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_with_join_reference2()
         {
             using (var context = CreateContext())
@@ -285,8 +288,8 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 var query = context.Tags.Join(
                     context.Gears,
                     t => new { SquadId = t.GearSquadId, Nickname = t.GearNickName },
-                    g => new { SquadId = (int?)g.SquadId, Nickname = g.Nickname },
-                    (CogTag t, Gear g) => g).Include(g => g.CityOfBirth);
+                    g => new { SquadId = (int?)g.SquadId, g.Nickname },
+                    (t, g) => g).Include(g => g.CityOfBirth);
 
                 var result = query.ToList();
                 Assert.Equal(5, result.Count);
@@ -294,16 +297,16 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_with_join_collection1()
         {
             using (var context = CreateContext())
             {
                 var query = context.Gears.Join(
                     context.Tags,
-                    g => new { SquadId = (int?)g.SquadId, Nickname = g.Nickname },
+                    g => new { SquadId = (int?)g.SquadId, g.Nickname },
                     t => new { SquadId = t.GearSquadId, Nickname = t.GearNickName },
-                    (Gear g, CogTag t) => g).Include(g => g.Weapons);
+                    (g, t) => g).Include(g => g.Weapons);
 
                 var result = query.ToList();
                 Assert.Equal(5, result.Count);
@@ -311,7 +314,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_with_join_collection2()
         {
             using (var context = CreateContext())
@@ -319,8 +322,8 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 var query = context.Tags.Join(
                     context.Gears,
                     t => new { SquadId = t.GearSquadId, Nickname = t.GearNickName },
-                    g => new { SquadId = (int?)g.SquadId, Nickname = g.Nickname },
-                    (CogTag t, Gear g) => g).Include(g => g.Weapons);
+                    g => new { SquadId = (int?)g.SquadId, g.Nickname },
+                    (t, g) => g).Include(g => g.Weapons);
 
                 var result = query.ToList();
                 Assert.Equal(5, result.Count);
@@ -328,16 +331,16 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_with_join_multi_level()
         {
             using (var context = CreateContext())
             {
                 var query = context.Gears.Join(
                     context.Tags,
-                    g => new { SquadId = (int?)g.SquadId, Nickname = g.Nickname },
+                    g => new { SquadId = (int?)g.SquadId, g.Nickname },
                     t => new { SquadId = t.GearSquadId, Nickname = t.GearNickName },
-                    (Gear g, CogTag t) => g).Include(g => g.CityOfBirth.StationedGears);
+                    (g, t) => g).Include(g => g.CityOfBirth.StationedGears);
 
                 var result = query.ToList();
                 Assert.Equal(5, result.Count);
@@ -345,8 +348,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        // issue #3235
-        //[Fact]
+        [ConditionalFact]
         public virtual void Include_with_join_and_inheritance1()
         {
             using (var context = CreateContext())
@@ -354,8 +356,8 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 var query = context.Tags.Join(
                     context.Gears.OfType<Officer>(),
                     t => new { SquadId = t.GearSquadId, Nickname = t.GearNickName },
-                    o => new { SquadId = (int?)o.SquadId, Nickname = o.Nickname },
-                    (CogTag t, Officer o) => o).Include(o => o.CityOfBirth);
+                    o => new { SquadId = (int?)o.SquadId, o.Nickname },
+                    (t, o) => o).Include(o => o.CityOfBirth);
 
                 var result = query.ToList();
                 Assert.Equal(2, result.Count);
@@ -363,17 +365,16 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        // issue #3235
-        //[Fact]
+        [ConditionalFact]
         public virtual void Include_with_join_and_inheritance2()
         {
             using (var context = CreateContext())
             {
                 var query = context.Gears.OfType<Officer>().Join(
                     context.Tags,
-                    o => new { SquadId = (int?)o.SquadId, Nickname = o.Nickname },
+                    o => new { SquadId = (int?)o.SquadId, o.Nickname },
                     t => new { SquadId = t.GearSquadId, Nickname = t.GearNickName },
-                    (Officer o, CogTag t) => o).Include(g => g.Weapons);
+                    (o, t) => o).Include(g => g.Weapons);
 
                 var result = query.ToList();
                 Assert.Equal(2, result.Count);
@@ -381,8 +382,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        // issue #3235
-        //[Fact]
+        [ConditionalFact]
         public virtual void Include_with_join_and_inheritance3()
         {
             using (var context = CreateContext())
@@ -390,16 +390,39 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 var query = context.Tags.Join(
                     context.Gears.OfType<Officer>(),
                     t => new { SquadId = t.GearSquadId, Nickname = t.GearNickName },
-                    g => new { SquadId = (int?)g.SquadId, Nickname = g.Nickname },
-                    (CogTag t, Officer o) => o).Include(o => o.Reports);
+                    g => new { SquadId = (int?)g.SquadId, g.Nickname },
+                    (t, o) => o).Include(o => o.Reports);
 
                 var result = query.ToList();
-                Assert.Equal(1, result.Count);
+                Assert.Equal(2, result.Count);
                 Assert.True(result.All(o => o.Reports.Count > 0));
             }
         }
 
-        [Fact]
+        [ConditionalFact]
+        public virtual void Include_with_nested_navigation_in_order_by()
+        {
+            using (var context = CreateContext())
+            {
+                var query = context.Weapons
+                    .Include(w => w.Owner)
+                    .OrderBy(e => e.Owner.CityOfBirth.Name);
+
+                var result = query.ToList();
+                Assert.Equal(9, result.Count);
+                Assert.Equal("Ephyra", result[0].Owner.CityOrBirthName);
+                Assert.Equal("Ephyra", result[1].Owner.CityOrBirthName);
+                Assert.Equal("Hanover", result[2].Owner.CityOrBirthName);
+                Assert.Equal("Hanover", result[3].Owner.CityOrBirthName);
+                Assert.Equal("Jacinto", result[4].Owner.CityOrBirthName);
+                Assert.Equal("Jacinto", result[5].Owner.CityOrBirthName);
+                Assert.Equal("Unknown", result[6].Owner.CityOrBirthName);
+                Assert.Equal("Unknown", result[7].Owner.CityOrBirthName);
+                Assert.Equal("Unknown", result[8].Owner.CityOrBirthName);
+            }
+        }
+
+        [ConditionalFact]
         public virtual void Where_enum()
         {
             using (var context = CreateContext())
@@ -412,7 +435,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Where_nullable_enum_with_constant()
         {
             using (var context = CreateContext())
@@ -425,7 +448,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Where_nullable_enum_with_null_constant()
         {
             using (var context = CreateContext())
@@ -438,7 +461,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        //[Fact] Issue #3424
+        //[ConditionalFact] Issue #3424
         public virtual void Where_nullable_enum_with_non_nullable_parameter()
         {
             var ammunitionType = AmmunitionType.Cartridge;
@@ -453,7 +476,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Where_nullable_enum_with_nullable_parameter()
         {
             AmmunitionType? ammunitionType = AmmunitionType.Cartridge;
@@ -479,7 +502,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation()
         {
             using (var context = CreateContext())
@@ -493,7 +516,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Scalar_Equals_Navigation_Scalar()
         {
             using (var context = CreateContext())
@@ -508,7 +531,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Scalar_Equals_Navigation_Scalar_Projected()
         {
             using (var context = CreateContext())
@@ -523,7 +546,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Client()
         {
             using (var context = CreateContext())
@@ -537,7 +560,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Null()
         {
             using (var context = CreateContext())
@@ -551,7 +574,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Null_Reverse()
         {
             using (var context = CreateContext())
@@ -565,7 +588,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Where_Navigation_Equals_Navigation()
         {
             using (var context = CreateContext())
@@ -580,7 +603,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Singleton_Navigation_With_Member_Access()
         {
             using (var context = CreateContext())
@@ -596,7 +619,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Select_Singleton_Navigation_With_Member_Access()
         {
             using (var context = CreateContext())
@@ -612,7 +635,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void GroupJoin_Composite_Key()
         {
             using (var context = CreateContext())
@@ -629,7 +652,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Join_navigation_translated_to_subquery_composite_key()
         {
             List<Gear> gears;
@@ -659,6 +682,38 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 {
                     Assert.True(expected.Contains(resultItem));
                 }
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Collection_with_inheritance_and_join_include_joined()
+        {
+            using (var context = CreateContext())
+            {
+                var query = (from t in context.Tags
+                             join g in context.Gears.OfType<Officer>() on new { id1 = t.GearSquadId, id2 = t.GearNickName } 
+                                equals new { id1 = (int?)g.SquadId, id2 = g.Nickname }
+                             select g).Include(g => g.Tag);
+
+                var result = query.ToList();
+
+                Assert.NotNull(result);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Collection_with_inheritance_and_join_include_source()
+        {
+            using (var context = CreateContext())
+            {
+                var query = (from g in context.Gears.OfType<Officer>()
+                             join t in context.Tags on new { id1 = (int?)g.SquadId, id2 = g.Nickname } 
+                                equals new { id1 = t.GearSquadId, id2 = t.GearNickName }
+                             select g).Include(g => g.Tag);
+
+                var result = query.ToList();
+
+                Assert.NotNull(result);
             }
         }
 

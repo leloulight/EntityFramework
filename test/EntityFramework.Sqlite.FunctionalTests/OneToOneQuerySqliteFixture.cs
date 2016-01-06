@@ -9,10 +9,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Data.Entity.Sqlite.FunctionalTests
 {
-    public class OneToOneQuerySqliteFixture : OneToOneQueryFixtureBase
+    public class OneToOneQuerySqliteFixture : OneToOneQueryFixtureBase, IDisposable
     {
         private readonly DbContextOptions _options;
         private readonly IServiceProvider _serviceProvider;
+        private readonly SqliteTestStore _testStore;
 
         public OneToOneQuerySqliteFixture()
         {
@@ -22,13 +23,13 @@ namespace Microsoft.Data.Entity.Sqlite.FunctionalTests
                     .AddSqlite()
                     .ServiceCollection()
                     .AddSingleton(TestSqliteModelSource.GetFactory(OnModelCreating))
-                    .AddInstance<ILoggerFactory>(new TestSqlLoggerFactory())
+                    .AddSingleton<ILoggerFactory>(new TestSqlLoggerFactory())
                     .BuildServiceProvider();
 
-            var database = SqliteTestStore.CreateScratch();
+            _testStore = SqliteTestStore.CreateScratch();
 
             var optionsBuilder = new DbContextOptionsBuilder();
-            optionsBuilder.UseSqlite(database.Connection.ConnectionString);
+            optionsBuilder.UseSqlite(_testStore.Connection.ConnectionString);
             _options = optionsBuilder.Options;
 
             using (var context = new DbContext(_serviceProvider, _options))
@@ -40,5 +41,7 @@ namespace Microsoft.Data.Entity.Sqlite.FunctionalTests
         }
 
         public DbContext CreateContext() => new DbContext(_serviceProvider, _options);
+
+        public void Dispose() => _testStore.Dispose();
     }
 }

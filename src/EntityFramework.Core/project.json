@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "Ix-Async": "1.2.5",
+<<<<<<< HEAD
     "Microsoft.Extensions.Caching.Abstractions": "1.0.0-rc1-final",
     "Microsoft.Extensions.Caching.Memory": "1.0.0-rc1-final",
     "Microsoft.Extensions.DependencyInjection": "1.0.0-rc1-final",
@@ -20,6 +21,16 @@
     "Microsoft.Extensions.OptionsModel": "1.0.0-rc1-final",
     "Remotion.Linq": "2.0.1",
     "System.Collections.Immutable": "1.1.38-beta-23516"
+=======
+    "Microsoft.Extensions.Caching.Abstractions": "1.0.0-*",
+    "Microsoft.Extensions.Caching.Memory": "1.0.0-*",
+    "Microsoft.Extensions.DependencyInjection": "1.0.0-*",
+    "Microsoft.Extensions.DependencyInjection.Abstractions": "1.0.0-*",
+    "Microsoft.Extensions.Logging": "1.0.0-*",
+    "Microsoft.Extensions.Logging.Abstractions": "1.0.0-*",
+    "Microsoft.Extensions.Options": "1.0.0-*",
+    "Remotion.Linq": "2.0.1"
+>>>>>>> refs/remotes/aspnet/dev
   },
   "compile": "..\\Shared\\*.cs",
   "namedResource": {
@@ -111,6 +122,7 @@
     },
     "dotnet5.4": {
       "dependencies": {
+<<<<<<< HEAD
         "System.Collections": "4.0.11-beta-23516",
         "System.Collections.Concurrent": "4.0.11-beta-23516",
         "System.ComponentModel": "4.0.1-beta-23516",
@@ -128,10 +140,30 @@
         "System.Runtime.InteropServices": "4.0.21-beta-23516",
         "System.Threading": "4.0.11-beta-23516",
         "System.Threading.Tasks": "4.0.11-beta-23516"
+=======
+        "System.Collections": "4.0.11-*",
+        "System.Collections.Concurrent": "4.0.11-*",
+        "System.ComponentModel": "4.0.1-*",
+        "System.ComponentModel.Annotations": "4.1.0-*",
+        "System.Diagnostics.Debug": "4.0.11-*",
+        "System.Diagnostics.Tools": "4.0.1-*",
+        "System.Linq": "4.0.1-*",
+        "System.Linq.Queryable": "4.0.1-*",
+        "System.ObjectModel": "4.0.11-*",
+        "System.Reflection": "4.1.0-*",
+        "System.Reflection.Extensions": "4.0.1-*",
+        "System.Reflection.TypeExtensions": "4.1.0-*",
+        "System.Resources.ResourceManager": "4.0.1-*",
+        "System.Runtime.Extensions": "4.0.11-*",
+        "System.Runtime.InteropServices": "4.0.21-*",
+        "System.Threading": "4.0.11-*",
+        "System.Threading.Tasks": "4.0.11-*"
+>>>>>>> refs/remotes/aspnet/dev
       }
     },
     "netcore50": {
       "dependencies": {
+<<<<<<< HEAD
         "System.ComponentModel": "4.0.1-beta-23516",
         "System.ComponentModel.Annotations": "4.0.11-beta-23516",
         "System.Diagnostics.Debug": "4.0.11-beta-23516",
@@ -149,6 +181,24 @@
         "System.Runtime.Extensions": "4.0.11-beta-23516",
         "System.Threading": "4.0.11-beta-23516",
         "System.Threading.Tasks": "4.0.11-beta-23516"
+=======
+        "System.ComponentModel": "4.0.0",
+        "System.ComponentModel.Annotations": "4.0.10",
+        "System.Diagnostics.Debug": "4.0.10",
+        "System.Globalization": "4.0.10",
+        "System.IO": "4.0.10",
+        "System.Linq": "4.0.0",
+        "System.Linq.Expressions": "4.0.10",
+        "System.Linq.Queryable": "4.0.0",
+        "System.ObjectModel": "4.0.10",
+        "System.Reflection": "4.0.10",
+        "System.Reflection.Extensions": "4.0.0",
+        "System.Reflection.TypeExtensions": "4.0.0",
+        "System.Resources.ResourceManager": "4.0.0",
+        "System.Runtime.Extensions": "4.0.10",
+        "System.Threading": "4.0.10",
+        "System.Threading.Tasks": "4.0.10"
+>>>>>>> refs/remotes/aspnet/dev
       }
     }
   }

@@ -14,6 +14,7 @@ using Microsoft.Data.Entity.Design;
 using Microsoft.Data.Entity.Design.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Utilities;
+using Microsoft.Dnx.Runtime;
 using Microsoft.Dnx.Runtime.Common.CommandLine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.PlatformAbstractions;
@@ -71,7 +72,7 @@ namespace Microsoft.Data.Entity.Commands
                                 "-c|--context <context>",
                                 "The DbContext to use. If omitted, the default DbContext is used");
                             var targetProject = update.Option(
-                                "-p|--targetProject <project>",
+                                "-p|--target-project <project>",
                                 "The project with the Migration classes. If omitted, the current project is used.");
                             var environment = update.Option(
                                 "-e|--environment <environment>",
@@ -111,7 +112,7 @@ namespace Microsoft.Data.Entity.Commands
                         {
                             list.Description = "List your DbContext types";
                             var targetProject = list.Option(
-                                "-p|--targetProject <project>",
+                                "-p|--target-project <project>",
                                 "The project with the DbContext classes. If omitted, the current project is used.");
                             var environment = list.Option(
                                 "-e|--environment <environment>",
@@ -151,14 +152,18 @@ namespace Microsoft.Data.Entity.Commands
                                 "[provider]",
                                 "The provider to use. For example, EntityFramework.MicrosoftSqlServer");
                             var useDataAnnotations = scaffold.Option(
-                                "-a|--dataAnnotations",
+                                "-a|--data-annotations",
                                 "Use DataAnnotation attributes to configure the model where possible. If omitted, the output code will use only the fluent API.",
                                 CommandOptionType.NoValue);
                             var dbContextClassName = scaffold.Option(
                                 "-c|--context <name>",
                                 "Name of the generated DbContext class.");
+                            var overwriteFiles = scaffold.Option(
+                                "-f|--force",
+                                "Force scaffolding to overwrite existing files. Otherwise, the code will only proceed if no output files would be overwritten.",
+                                CommandOptionType.NoValue);
                             var outputDir = scaffold.Option(
-                                "-o|--outputDir <path>",
+                                "-o|--output-dir <path>",
                                 "Directory of the project where the classes should be output. If omitted, the top-level project directory is used.");
                             var schemaFilters = scaffold.Option(
                                 "-s|--schema <schema_name.table_name>",
@@ -169,7 +174,7 @@ namespace Microsoft.Data.Entity.Commands
                                 "Selects a table for which to generate classes.",
                                 CommandOptionType.MultipleValue);
                             var targetProject = scaffold.Option(
-                                "-p|--targetProject <project>",
+                                "-p|--target-project <project>",
                                 "The project to scaffold the model into. If omitted, the current project is used.");
                             var environment = scaffold.Option(
                                 "-e|--environment <environment>",
@@ -214,6 +219,7 @@ namespace Microsoft.Data.Entity.Commands
                                             schemaFilters.Values,
                                             tableFilters.Values,
                                             useDataAnnotations.HasValue(),
+                                            overwriteFiles.HasValue(),
                                             cancellationTokenSource.Token);
                                 });
                         });
@@ -234,13 +240,13 @@ namespace Microsoft.Data.Entity.Commands
                                 "[name]",
                                 "The name of the migration");
                             var outputDir = add.Option(
-                                "-o|--outputDir",
+                                "-o|--output-dir <path>",
                                 "The directory (and sub-namespace) to use. If omitted, \"Migrations\" is used.");
                             var context = add.Option(
                                 "-c|--context <context>",
                                 "The DbContext to use. If omitted, the default DbContext is used");
                             var targetProject = add.Option(
-                                "-p|--targetProject <project>",
+                                "-p|--target-project <project>",
                                 "The project to add the migration to. If omitted, the current project is used.");
                             var environment = add.Option(
                                 "-e|--environment <environment>",
@@ -284,7 +290,7 @@ namespace Microsoft.Data.Entity.Commands
                                 "-c|--context <context>",
                                 "The DbContext to use. If omitted, the default DbContext is used");
                             var targetProject = list.Option(
-                                "-p|--targetProject <project>",
+                                "-p|--target-project <project>",
                                 "The project with the Migration classes. If omitted, the current project is used.");
                             var environment = list.Option(
                                 "-e|--environment <environment>",
@@ -322,7 +328,7 @@ namespace Microsoft.Data.Entity.Commands
                                 "-c|--context <context>",
                                 "The DbContext to use. If omitted, the default DbContext is used");
                             var targetProject = remove.Option(
-                                "-p|--targetProject <project>",
+                                "-p|--target-project <project>",
                                 "The project with the Migration classes. If omitted, the current project is used.");
                             var environment = remove.Option(
                                 "-e|--environment <environment>",
@@ -368,7 +374,7 @@ namespace Microsoft.Data.Entity.Commands
                                 "-c|--context <context>",
                                 "The DbContext to use. If omitted, the default DbContext is used");
                             var targetProject = script.Option(
-                                "-p|--targetProject <project>",
+                                "-p|--target-project <project>",
                                 "The project with the Migration classes. If omitted, the current project is used.");
                             var environment = script.Option(
                                 "-e|--environment <environment>",
@@ -637,7 +643,7 @@ namespace Microsoft.Data.Entity.Commands
                         }
                         else
                         {
-                            _logger.Value.LogVerbose("Writing SQL script to '{0}'", output);
+                            _logger.Value.LogDebug("Writing SQL script to '{0}'", output);
                             File.WriteAllText(output, sql);
 
                             _logger.Value.LogInformation("Done");
@@ -655,13 +661,15 @@ namespace Microsoft.Data.Entity.Commands
                 [CanBeNull] List<string> schemaFilters,
                 [CanBeNull] List<string> tableFilters,
                 bool useDataAnnotations,
+                bool overwriteFiles,
                 CancellationToken cancellationToken = default(CancellationToken))
                 => ExecuteAsync(
                     async () =>
                     {
                         await _databaseOperations.Value.ReverseEngineerAsync(
                             providerAssemblyName, connectionString, outputDirectory,
-                            dbContextClassName, schemaFilters, tableFilters, useDataAnnotations);
+                            dbContextClassName, schemaFilters, tableFilters,
+                            useDataAnnotations, overwriteFiles);
 
                         _logger.Value.LogInformation("Done");
                     });
@@ -702,7 +710,7 @@ namespace Microsoft.Data.Entity.Commands
             {
                 if (ex is OperationException)
                 {
-                    _logger.Value.LogVerbose(ex.ToString());
+                    _logger.Value.LogDebug(ex.ToString());
                 }
                 else
                 {

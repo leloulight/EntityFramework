@@ -3,12 +3,14 @@
 
 using System.Reflection;
 using JetBrains.Annotations;
+using Remotion.Linq.Clauses;
 
 namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
 {
     public interface IQueryFlattenerFactory
     {
         QueryFlattener Create(
+            [NotNull] IQuerySource querySource,
             [NotNull] RelationalQueryCompilationContext relationalQueryCompilationContext,
             [NotNull] MethodInfo operatorToFlatten,
             int readerOffset);

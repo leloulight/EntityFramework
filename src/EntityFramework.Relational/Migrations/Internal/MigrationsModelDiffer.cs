@@ -11,6 +11,7 @@ using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Migrations.Operations;
+using Microsoft.Data.Entity.Storage;
 using Microsoft.Data.Entity.Utilities;
 
 namespace Microsoft.Data.Entity.Migrations.Internal
@@ -45,16 +46,20 @@ namespace Microsoft.Data.Entity.Migrations.Internal
         };
 
         public MigrationsModelDiffer(
+            [NotNull] IRelationalTypeMapper typeMapper,
             [NotNull] IRelationalAnnotationProvider annotations,
             [NotNull] IMigrationsAnnotationProvider migrationsAnnotations)
         {
+            Check.NotNull(typeMapper, nameof(typeMapper));
             Check.NotNull(annotations, nameof(annotations));
             Check.NotNull(migrationsAnnotations, nameof(migrationsAnnotations));
 
+            TypeMapper = typeMapper;
             Annotations = annotations;
             MigrationsAnnotations = migrationsAnnotations;
         }
 
+        protected virtual IRelationalTypeMapper TypeMapper { get; }
         protected virtual IRelationalAnnotationProvider Annotations { get; }
         protected virtual IMigrationsAnnotationProvider MigrationsAnnotations { get; }
 
@@ -147,15 +152,15 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             {
                 foreach (var addForeignKeyOperation in createTableOperation.ForeignKeys)
                 {
-                    if (addForeignKeyOperation.Table == addForeignKeyOperation.PrincipalTable
-                        && addForeignKeyOperation.Schema == addForeignKeyOperation.PrincipalSchema)
+                    if ((addForeignKeyOperation.Table == addForeignKeyOperation.PrincipalTable)
+                        && (addForeignKeyOperation.Schema == addForeignKeyOperation.PrincipalSchema))
                     {
                         continue;
                     }
 
                     var principalCreateTableOperation = createTableOperations.FirstOrDefault(
-                        o => o.Name == addForeignKeyOperation.PrincipalTable
-                             && o.Schema == addForeignKeyOperation.PrincipalSchema);
+                        o => (o.Name == addForeignKeyOperation.PrincipalTable)
+                             && (o.Schema == addForeignKeyOperation.PrincipalSchema));
                     if (principalCreateTableOperation != null)
                     {
                         createTableGraph.AddEdge(principalCreateTableOperation, createTableOperation, addForeignKeyOperation);
@@ -179,7 +184,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             foreach (var dropTableOperation in dropTableOperations)
             {
                 var entityType = diffContext.GetMetadata(dropTableOperation);
-                foreach (var foreignKey in entityType.GetForeignKeysInHierarchy())
+                foreach (var foreignKey in GetForeignKeysInHierarchy(entityType))
                 {
                     var principalRootEntityType = foreignKey.PrincipalEntityType.RootType();
                     if (entityType == principalRootEntityType)
@@ -224,7 +229,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             [CanBeNull] IModel source,
             [CanBeNull] IModel target,
             [NotNull] DiffContext diffContext)
-            => source != null && target != null
+            => (source != null) && (target != null)
                 ? Diff(GetSchemas(source), GetSchemas(target))
                     .Concat(Diff(source.GetRootEntityTypes(), target.GetRootEntityTypes(), diffContext))
                     .Concat(
@@ -321,9 +326,9 @@ namespace Microsoft.Data.Entity.Migrations.Internal
 
             diffContext.AddMapping(source, target);
 
-            var operations = Diff(source.GetPropertiesInHierarchy(), target.GetPropertiesInHierarchy(), diffContext)
+            var operations = Diff(GetPropertiesInHierarchy(source), GetPropertiesInHierarchy(target), diffContext)
                 .Concat(Diff(source.GetKeys(), target.GetKeys(), diffContext))
-                .Concat(Diff(source.GetIndexesInHierarchy(), target.GetIndexesInHierarchy(), diffContext));
+                .Concat(Diff(GetIndexesInHierarchy(source), GetIndexesInHierarchy(target), diffContext));
             foreach (var operation in operations)
             {
                 yield return operation;
@@ -341,7 +346,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             };
             CopyAnnotations(MigrationsAnnotations.For(target), createTableOperation);
 
-            createTableOperation.Columns.AddRange(target.GetPropertiesInHierarchy().SelectMany(p => Add(p, inline: true)).Cast<AddColumnOperation>());
+            createTableOperation.Columns.AddRange(GetPropertiesInHierarchy(target).SelectMany(p => Add(p, inline: true)).Cast<AddColumnOperation>());
             var primaryKey = target.FindPrimaryKey();
             createTableOperation.PrimaryKey = Add(primaryKey).Cast<AddPrimaryKeyOperation>().Single();
             createTableOperation.UniqueConstraints.AddRange(
@@ -351,7 +356,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
 
             yield return createTableOperation;
 
-            foreach (var operation in target.GetIndexesInHierarchy().SelectMany(Add))
+            foreach (var operation in GetIndexesInHierarchy(target).SelectMany(Add))
             {
                 yield return operation;
             }
@@ -371,6 +376,19 @@ namespace Microsoft.Data.Entity.Migrations.Internal
 
             yield return operation;
         }
+
+        private IEnumerable<IForeignKey> GetForeignKeysInHierarchy(IEntityType entityType)
+            => entityType.GetDeclaredForeignKeys()
+                .Concat(entityType.GetDerivedTypes().SelectMany(t => t.GetDeclaredForeignKeys()))
+                .Distinct((x, y) => Annotations.For(x).Name == Annotations.For(y).Name);
+
+        private IEnumerable<IIndex> GetIndexesInHierarchy(IEntityType entityType)
+            => entityType.GetDeclaredIndexes().Concat(entityType.GetDerivedTypes().SelectMany(t => t.GetDeclaredIndexes()))
+                .Distinct((x, y) => Annotations.For(x).Name == Annotations.For(y).Name);
+
+        private IEnumerable<IProperty> GetPropertiesInHierarchy(IEntityType entityType)
+            => entityType.GetDeclaredProperties().Concat(entityType.GetDerivedTypes().SelectMany(t => t.GetDeclaredProperties()))
+                .Distinct((x, y) => Annotations.For(x).ColumnName == Annotations.For(y).ColumnName);
 
         #endregion
 
@@ -414,18 +432,21 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 };
             }
 
-            var targetClrType = target.ClrType.UnwrapNullableType().UnwrapEnumType();
+            var sourceColumnType = sourceAnnotations.ColumnType
+                                   ?? TypeMapper.GetMapping(source).DefaultTypeName;
+            var targetColumnType = targetAnnotations.ColumnType
+                                   ?? TypeMapper.GetMapping(target).DefaultTypeName;
 
             var targetMigrationsAnnotations = MigrationsAnnotations.For(target);
 
             var isSourceColumnNullable = source.IsColumnNullable();
             var isTargetColumnNullable = target.IsColumnNullable();
             var isNullableChanged = isSourceColumnNullable != isTargetColumnNullable;
-            var columnTypeChanged = source.ClrType.UnwrapNullableType().UnwrapEnumType() != targetClrType
-                                    || sourceAnnotations.ColumnType != targetAnnotations.ColumnType;
+            var columnTypeChanged = sourceColumnType != targetColumnType;
+
             if (isNullableChanged
                 || columnTypeChanged
-                || sourceAnnotations.GeneratedValueSql != targetAnnotations.GeneratedValueSql
+                || (sourceAnnotations.GeneratedValueSql != targetAnnotations.GeneratedValueSql)
                 || !Equals(sourceAnnotations.DefaultValue, targetAnnotations.DefaultValue)
                 || HasDifferences(MigrationsAnnotations.For(source), targetMigrationsAnnotations))
             {
@@ -438,7 +459,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     Schema = sourceEntityTypeAnnotations.Schema,
                     Table = sourceEntityTypeAnnotations.TableName,
                     Name = sourceAnnotations.ColumnName,
-                    ClrType = targetClrType,
+                    ClrType = target.ClrType.UnwrapNullableType().UnwrapEnumType(),
                     ColumnType = targetAnnotations.ColumnType,
                     IsNullable = isTargetColumnNullable,
                     DefaultValue = targetAnnotations.DefaultValue,
@@ -500,9 +521,9 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             => DiffCollection(
                 source, target,
                 Diff, Add, Remove,
-                (s, t) => Annotations.For(s).Name == Annotations.For(t).Name
+                (s, t) => (Annotations.For(s).Name == Annotations.For(t).Name)
                           && s.Properties.Select(diffContext.FindTarget).SequenceEqual(t.Properties)
-                          && s.IsPrimaryKey() == t.IsPrimaryKey());
+                          && (s.IsPrimaryKey() == t.IsPrimaryKey()));
 
         protected virtual IEnumerable<MigrationOperation> Diff([NotNull] IKey source, [NotNull] IKey target)
             => HasDifferences(MigrationsAnnotations.For(source), MigrationsAnnotations.For(target))
@@ -579,11 +600,11 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 (s, t) => Diff(s, t, diffContext),
                 t => Add(t, diffContext),
                 s => Remove(s, diffContext),
-                (s, t) => Annotations.For(s).Name == Annotations.For(t).Name
+                (s, t) => (Annotations.For(s).Name == Annotations.For(t).Name)
                           && s.Properties.Select(diffContext.FindTarget).SequenceEqual(t.Properties)
-                          && diffContext.FindTarget(s.PrincipalEntityType.RootType()) == t.PrincipalEntityType.RootType()
+                          && (diffContext.FindTarget(s.PrincipalEntityType.RootType()) == t.PrincipalEntityType.RootType())
                           && s.PrincipalKey.Properties.Select(diffContext.FindTarget).SequenceEqual(t.PrincipalKey.Properties)
-                          && s.DeleteBehavior == t.DeleteBehavior);
+                          && (s.DeleteBehavior == t.DeleteBehavior));
 
         protected virtual IEnumerable<MigrationOperation> Diff(
             [NotNull] IForeignKey source, [NotNull] IForeignKey target, [NotNull] DiffContext diffContext)
@@ -677,7 +698,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 };
             }
 
-            if (source.IsUnique != target.IsUnique
+            if ((source.IsUnique != target.IsUnique)
                 || HasDifferences(MigrationsAnnotations.For(source), MigrationsAnnotations.For(target)))
             {
                 var operations = Remove(source).Concat(Add(target));
@@ -729,9 +750,9 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 Diff, Add, Remove,
                 (s, t) => string.Equals(s.Schema, t.Schema, StringComparison.OrdinalIgnoreCase)
                           && string.Equals(s.Name, t.Name, StringComparison.OrdinalIgnoreCase)
-                          && s.ClrType == t.ClrType,
+                          && (s.ClrType == t.ClrType),
                 (s, t) => string.Equals(s.Name, t.Name, StringComparison.OrdinalIgnoreCase)
-                          && s.ClrType == t.ClrType);
+                          && (s.ClrType == t.ClrType));
 
         protected virtual IEnumerable<MigrationOperation> Diff([NotNull] ISequence source, [NotNull] ISequence target)
         {
@@ -758,10 +779,10 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 };
             }
 
-            if (source.IncrementBy != target.IncrementBy
-                || source.MaxValue != target.MaxValue
-                || source.MinValue != target.MinValue
-                || source.IsCyclic != target.IsCyclic)
+            if ((source.IncrementBy != target.IncrementBy)
+                || (source.MaxValue != target.MaxValue)
+                || (source.MinValue != target.MinValue)
+                || (source.IsCyclic != target.IsCyclic))
             {
                 yield return new AlterSequenceOperation
                 {
@@ -870,7 +891,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
 
             foreach (var annotation in source)
             {
-                var index = unmatched.FindIndex(a => a.Name == annotation.Name && Equals(a.Value, annotation.Value));
+                var index = unmatched.FindIndex(a => (a.Name == annotation.Name) && Equals(a.Value, annotation.Value));
                 if (index == -1)
                 {
                     return true;

@@ -27,14 +27,14 @@ namespace Microsoft.Data.Entity.Query.Internal
         {
             public bool TryPrintConstant(object value, IndentedStringBuilder stringBuilder)
             {
-                var commandBuilder = value as CommandBuilder;
-                if (commandBuilder != null)
+                var shaperCommandContext = value as ShaperCommandContext;
+                if (shaperCommandContext != null)
                 {
                     stringBuilder.AppendLine("SelectExpression: ");
                     stringBuilder.IncrementIndent();
 
-                    var commandGenerator = commandBuilder.SqlGeneratorFunc();
-                    var sql = commandGenerator.GenerateSql(new Dictionary<string, object>()).CommandText;
+                    var querySqlGenerator = shaperCommandContext.QuerySqlGeneratorFactory();
+                    var sql = querySqlGenerator.GenerateSql(new Dictionary<string, object>()).CommandText;
 
                     var lines = sql.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
                     foreach (var line in lines)

@@ -32,6 +32,8 @@ namespace Microsoft.Data.Entity.Design.Internal
             var startupAssembly = Assembly.Load(new AssemblyName(startupAssemblyName));
             _startupType = startupAssembly.DefinedTypes.Where(t => t.Name == "Startup" + _environment)
                 .Concat(startupAssembly.DefinedTypes.Where(t => t.Name == "Startup"))
+                .Concat(startupAssembly.DefinedTypes.Where(t => t.Name == "Program"))
+                .Concat(startupAssembly.DefinedTypes.Where(t => t.Name == "App"))
                 .Select(t => t.AsType())
                 .FirstOrDefault();
         }
@@ -95,7 +97,7 @@ namespace Microsoft.Data.Entity.Design.Internal
             => services
 #if DNX451 || DNXCORE50
                 .ImportDnxServices()
-                .AddInstance<IHostingEnvironment>(new HostingEnvironment { EnvironmentName = _environment })
+                .AddSingleton<IHostingEnvironment>(new HostingEnvironment { EnvironmentName = _environment })
 #endif
                 .AddLogging();
 

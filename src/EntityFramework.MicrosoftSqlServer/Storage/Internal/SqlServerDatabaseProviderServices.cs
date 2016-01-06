@@ -5,8 +5,10 @@ using System;
 using System.Reflection;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
+using Microsoft.Data.Entity.Infrastructure.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
+using Microsoft.Data.Entity.Metadata.Conventions;
 using Microsoft.Data.Entity.Metadata.Conventions.Internal;
 using Microsoft.Data.Entity.Migrations;
 using Microsoft.Data.Entity.Migrations.Internal;
@@ -33,7 +35,7 @@ namespace Microsoft.Data.Entity.Storage.Internal
         public override string InvariantName => GetType().GetTypeInfo().Assembly.GetName().Name;
         public override IDatabaseCreator Creator => GetService<SqlServerDatabaseCreator>();
         public override IRelationalConnection RelationalConnection => GetService<ISqlServerConnection>();
-        public override ISqlGenerator SqlGenerator => GetService<SqlServerSqlGenerator>();
+        public override ISqlGenerationHelper SqlGenerationHelper => GetService<SqlServerSqlGenerationHelper>();
         public override IValueGeneratorSelector ValueGeneratorSelector => GetService<SqlServerValueGeneratorSelector>();
         public override IRelationalDatabaseCreator RelationalDatabaseCreator => GetService<SqlServerDatabaseCreator>();
         public override IConventionSetBuilder ConventionSetBuilder => GetService<SqlServerConventionSetBuilder>();
@@ -50,7 +52,7 @@ namespace Microsoft.Data.Entity.Storage.Internal
         public override IMethodCallTranslator CompositeMethodCallTranslator => GetService<SqlServerCompositeMethodCallTranslator>();
         public override IMemberTranslator CompositeMemberTranslator => GetService<SqlServerCompositeMemberTranslator>();
         public override IQueryCompilationContextFactory QueryCompilationContextFactory => GetService<SqlServerQueryCompilationContextFactory>();
-        public override ISqlQueryGeneratorFactory SqlQueryGeneratorFactory => GetService<SqlServerQuerySqlGeneratorFactory>();
+        public override IQuerySqlGeneratorFactory QuerySqlGeneratorFactory => GetService<SqlServerQuerySqlGeneratorFactory>();
         public override IEntityQueryModelVisitorFactory EntityQueryModelVisitorFactory => GetService<SqlServerQueryModelVisitorFactory>();
         public override ICompiledQueryCacheKeyGenerator CompiledQueryCacheKeyGenerator => GetService<SqlServerCompiledQueryCacheKeyGenerator>();
         public override IModelValidator ModelValidator => GetService<SqlServerModelValidator>();

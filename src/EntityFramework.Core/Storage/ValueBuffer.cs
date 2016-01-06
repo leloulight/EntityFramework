@@ -3,18 +3,20 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
 using JetBrains.Annotations;
 
 namespace Microsoft.Data.Entity.Storage
 {
     /// <summary>
-    ///     <para>  
+    ///     <para>
     ///         Represents a set of indexed values. Typically used to represent a row of data returned from a database.
-    ///     </para>  
-    ///     <para>  
-    ///         This type is typically used by database providers (and other extensions). It is generally  
-    ///         not used in application code.  
-    ///     </para> 
+    ///     </para>
+    ///     <para>
+    ///         This type is typically used by database providers (and other extensions). It is generally
+    ///         not used in application code.
+    ///     </para>
     /// </summary>
     public struct ValueBuffer
     {
@@ -27,7 +29,7 @@ namespace Microsoft.Data.Entity.Storage
         private readonly int _offset;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="ValueBuffer" /> class. 
+        ///     Initializes a new instance of the <see cref="ValueBuffer" /> class.
         /// </summary>
         /// <param name="values"> The list of values for this buffer. </param>
         public ValueBuffer([NotNull] IList<object> values)
@@ -36,11 +38,11 @@ namespace Microsoft.Data.Entity.Storage
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="ValueBuffer" /> class. 
+        ///     Initializes a new instance of the <see cref="ValueBuffer" /> class.
         /// </summary>
         /// <param name="values"> The list of values for this buffer. </param>
-        /// <param name="offset"> 
-        ///     The starting slot in <paramref name="values"/> for this buffer.
+        /// <param name="offset">
+        ///     The starting slot in <paramref name="values" /> for this buffer.
         /// </param>
         public ValueBuffer([NotNull] IList<object> values, int offset)
         {
@@ -62,6 +64,9 @@ namespace Microsoft.Data.Entity.Storage
             [param: CanBeNull] set { _values[_offset + index] = value; }
         }
 
+        internal static readonly MethodInfo GetValueMethod
+            = typeof(ValueBuffer).GetRuntimeProperties().Single(p => p.GetIndexParameters().Any()).GetMethod;
+
         /// <summary>
         ///     Gets the number of values in this buffer.
         /// </summary>
@@ -82,5 +87,7 @@ namespace Microsoft.Data.Entity.Storage
                 ? new ValueBuffer(_values, offset)
                 : this;
         }
+
+        public bool IsEmpty => _values == null;
     }
 }

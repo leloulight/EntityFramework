@@ -11,12 +11,12 @@ using Microsoft.Data.Entity.Utilities;
 namespace Microsoft.Data.Entity
 {
     /// <summary>
-    ///     Extension methods for <see cref="IProperty"/>.
+    ///     Extension methods for <see cref="IProperty" />.
     /// </summary>
     public static class PropertyExtensions
     {
         /// <summary>
-        ///     Gets the maximum length of data that is allowed in this property. For example, if the property is a <see cref="string"/> '
+        ///     Gets the maximum length of data that is allowed in this property. For example, if the property is a <see cref="string" /> '
         ///     then this is the maximum number of characters.
         /// </summary>
         /// <param name="property"> The property to get the maximum length of. </param>
@@ -36,7 +36,17 @@ namespace Microsoft.Data.Entity
         ///     True if the property is used as a foreign key, otherwise false.
         /// </returns>
         public static bool IsForeignKey([NotNull] this IProperty property)
-            => FindContainingForeignKeys(property).Any();
+        {
+            Check.NotNull(property, nameof(property));
+
+            var keyMetadata = property as IPropertyKeyMetadata;
+            if (keyMetadata != null)
+            {
+                return keyMetadata.ForeignKeys != null;
+            }
+
+            return FindContainingForeignKeys(property).Any();
+        }
 
         /// <summary>
         ///     Gets a value indicating whether this property is used as the primary key (or part of a composite primary key).
@@ -57,7 +67,17 @@ namespace Microsoft.Data.Entity
         ///     True if the property is part of a key, otherwise false.
         /// </returns>
         public static bool IsKey([NotNull] this IProperty property)
-            => FindContainingKeys(property).Any();
+        {
+            Check.NotNull(property, nameof(property));
+
+            var keyMetadata = property as IPropertyKeyMetadata;
+            if (keyMetadata != null)
+            {
+                return keyMetadata.Keys != null;
+            }
+
+            return FindContainingKeys(property).Any();
+        }
 
         /// <summary>
         ///     Gets all foreign keys that use this property (including composite foreign keys in which this property
@@ -71,10 +91,35 @@ namespace Microsoft.Data.Entity
         {
             Check.NotNull(property, nameof(property));
 
+            var keyMetadata = property as IPropertyKeyMetadata;
+            if (keyMetadata != null)
+            {
+                return keyMetadata.ForeignKeys ?? Enumerable.Empty<IForeignKey>();
+            }
+
             var entityType = property.DeclaringEntityType;
             return entityType.GetAllBaseTypesInclusive()
                 .Concat(entityType.GetDerivedTypes())
                 .SelectMany(et => et.GetDeclaredForeignKeys())
+                .Where(k => k.Properties.Contains(property));
+        }
+
+        /// <summary>
+        ///     Gets all indexes that use this property (including composite indexes in which this property
+        ///     is included).
+        /// </summary>
+        /// <param name="property"> The property to get indexes for. </param>
+        /// <returns>
+        ///     The indexes that use this property.
+        /// </returns>
+        public static IEnumerable<IIndex> FindContainingIndexes([NotNull] this IProperty property)
+        {
+            Check.NotNull(property, nameof(property));
+
+            var entityType = property.DeclaringEntityType;
+            return entityType.GetAllBaseTypesInclusive()
+                .Concat(entityType.GetDerivedTypes())
+                .SelectMany(et => et.GetDeclaredIndexes())
                 .Where(k => k.Properties.Contains(property));
         }
 
@@ -90,8 +135,14 @@ namespace Microsoft.Data.Entity
         {
             Check.NotNull(property, nameof(property));
 
+            var keyMetadata = property as IPropertyKeyMetadata;
+            if (keyMetadata != null)
+            {
+                return keyMetadata.PrimaryKey;
+            }
+
             var pk = property.DeclaringEntityType.FindPrimaryKey();
-            if (pk != null
+            if ((pk != null)
                 && pk.Properties.Contains(property))
             {
                 return pk;
@@ -111,6 +162,12 @@ namespace Microsoft.Data.Entity
         public static IEnumerable<IKey> FindContainingKeys([NotNull] this IProperty property)
         {
             Check.NotNull(property, nameof(property));
+
+            var keyMetadata = property as IPropertyKeyMetadata;
+            if (keyMetadata != null)
+            {
+                return keyMetadata.Keys ?? Enumerable.Empty<IKey>();
+            }
 
             return property.DeclaringEntityType.GetKeys().Where(e => e.Properties.Contains(property));
         }

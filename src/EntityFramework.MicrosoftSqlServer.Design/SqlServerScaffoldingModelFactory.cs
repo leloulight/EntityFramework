@@ -8,6 +8,7 @@ using JetBrains.Annotations;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Builders;
+using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Scaffolding.Internal;
 using Microsoft.Data.Entity.Scaffolding.Metadata;
 using Microsoft.Data.Entity.Storage;
@@ -18,21 +19,14 @@ namespace Microsoft.Data.Entity.Scaffolding
 {
     public class SqlServerScaffoldingModelFactory : RelationalScaffoldingModelFactory
     {
-        private readonly SqlServerLiteralUtilities _sqlServerLiteralUtilities;
-
-        private const int DefaultDateTimePrecision = 7;
-        private static readonly ISet<string> _dateTimePrecisionTypes = new HashSet<string> { "datetimeoffset", "datetime2", "time" };
+        private const int DefaultTimeTimePrecision = 7;
 
         public SqlServerScaffoldingModelFactory(
             [NotNull] ILoggerFactory loggerFactory,
             [NotNull] IRelationalTypeMapper typeMapper,
-            [NotNull] IDatabaseModelFactory databaseModelFactory,
-            [NotNull] SqlServerLiteralUtilities sqlServerLiteralUtilities)
+            [NotNull] IDatabaseModelFactory databaseModelFactory)
             : base(loggerFactory, typeMapper, databaseModelFactory)
         {
-            Check.NotNull(sqlServerLiteralUtilities, nameof(sqlServerLiteralUtilities));
-
-            _sqlServerLiteralUtilities = sqlServerLiteralUtilities;
         }
 
         public override IModel Create(string connectionString, TableSelectionSet tableSelectionSet)
@@ -74,7 +68,7 @@ namespace Microsoft.Data.Entity.Scaffolding
 
             // TODO use KeyConvention directly to detect when it will be applied
             var pkColumns = table.Columns.Where(c => c.PrimaryKeyOrdinal.HasValue).ToList();
-            if (pkColumns.Count != 1 || pkColumns[0].IsIdentity == true)
+            if (pkColumns.Count != 1 || pkColumns[0].SqlServer().IsIdentity)
             {
                 return keyBuilder;
             }
@@ -96,7 +90,7 @@ namespace Microsoft.Data.Entity.Scaffolding
         {
             var indexBuilder = base.VisitIndex(builder, index);
 
-            if (index.IsClustered == true)
+            if (index.SqlServer().IsClustered)
             {
                 indexBuilder?.ForSqlServerIsClustered();
             }
@@ -106,7 +100,7 @@ namespace Microsoft.Data.Entity.Scaffolding
 
         private PropertyBuilder VisitTypeMapping(PropertyBuilder propertyBuilder, ColumnModel column)
         {
-            if (column.IsIdentity == true)
+            if (column.SqlServer().IsIdentity)
             {
                 if (typeof(byte) == propertyBuilder.Metadata.ClrType)
                 {
@@ -122,12 +116,10 @@ namespace Microsoft.Data.Entity.Scaffolding
                 }
             }
 
-            if (_dateTimePrecisionTypes.Contains(column.DataType)
-                && column.Scale.HasValue
-                && column.Scale != DefaultDateTimePrecision)
+            if (column.SqlServer().DateTimePrecision.HasValue && column.SqlServer().DateTimePrecision != DefaultTimeTimePrecision)
             {
                 propertyBuilder.Metadata.SetMaxLength(null);
-                propertyBuilder.HasColumnType($"{column.DataType}({column.Scale})"); //not a typo: .Scale is the right property for datetime precision
+                propertyBuilder.HasColumnType($"{column.DataType}({column.SqlServer().DateTimePrecision.Value})");
             }
 
             // undo quirk in reverse type mapping to litters code with unnecessary nvarchar annotations
@@ -144,33 +136,45 @@ namespace Microsoft.Data.Entity.Scaffolding
         {
             if (column.DefaultValue != null)
             {
-                // unset default
-                propertyBuilder.Metadata.ValueGenerated = null;
+                ((Property)propertyBuilder.Metadata).SetValueGenerated(null, ConfigurationSource.Explicit);
                 propertyBuilder.Metadata.Relational().GeneratedValueSql = null;
 
-                var property = propertyBuilder.Metadata;
-                var defaultExpressionOrValue =
-                    _sqlServerLiteralUtilities
-                        .ConvertSqlServerDefaultValue(
-                            property.ClrType, column.DefaultValue);
-                if (defaultExpressionOrValue?.DefaultExpression != null)
+                var defaultExpression = ConvertSqlServerDefaultValue(column.DefaultValue);
+                if (defaultExpression != null)
                 {
-                    propertyBuilder.HasDefaultValueSql(defaultExpressionOrValue.DefaultExpression);
-                }
-                else if (defaultExpressionOrValue != null)
-                {
-                    // Note: defaultExpressionOrValue.DefaultValue == null is valid
-                    propertyBuilder.HasDefaultValue(defaultExpressionOrValue.DefaultValue);
+                    if (!(defaultExpression == "NULL"
+                            && propertyBuilder.Metadata.ClrType.IsNullableType()))
+                    {
+                        propertyBuilder.HasDefaultValueSql(defaultExpression);
+                    }
                 }
                 else
                 {
                     Logger.LogWarning(
-                        SqlServerDesignStrings.UnableToConvertDefaultValue(
-                            column.DisplayName, column.DefaultValue,
-                            property.ClrType, property.Name, property.DeclaringEntityType.Name));
+                        SqlServerDesignStrings.CannotInterpretDefaultValue(
+                            column.DisplayName,
+                            column.DefaultValue,
+                            propertyBuilder.Metadata.Name,
+                            propertyBuilder.Metadata.DeclaringEntityType.Name));
                 }
             }
             return propertyBuilder;
+        }
+
+        private string ConvertSqlServerDefaultValue(string sqlServerDefaultValue)
+        {
+            if (sqlServerDefaultValue.Length < 2)
+            {
+                return null;
+            }
+
+            while (sqlServerDefaultValue[0] == '('
+                   && sqlServerDefaultValue[sqlServerDefaultValue.Length - 1] == ')')
+            {
+                sqlServerDefaultValue = sqlServerDefaultValue.Substring(1, sqlServerDefaultValue.Length - 2);
+            }
+
+            return sqlServerDefaultValue;
         }
     }
 }

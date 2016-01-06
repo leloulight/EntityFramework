@@ -3,6 +3,7 @@
 
 using System;
 using System.Linq;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Migrations.Operations;
 using Xunit;
@@ -42,19 +43,17 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 result =>
                 {
-                    Assert.Equal(3, result.Count);
+                    Assert.Equal(5, result.Count);
 
-                    var firstOperation = result[0] as CreateTableOperation;
-                    var secondOperation = result[1] as CreateTableOperation;
-                    var thirdOperation = result[2] as AddForeignKeyOperation;
+                    var createFirstTableOperation = Assert.IsType<CreateTableOperation>(result[0]);
+                    var createSecondTableOperation = Assert.IsType<CreateTableOperation>(result[1]);
+                    Assert.IsType<CreateIndexOperation>(result[2]);
+                    Assert.IsType<CreateIndexOperation>(result[3]);
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(result[4]);
 
-                    Assert.NotNull(firstOperation);
-                    Assert.NotNull(secondOperation);
-                    Assert.NotNull(thirdOperation);
-
-                    Assert.Equal(0, firstOperation.ForeignKeys.Count);
-                    Assert.Equal(1, secondOperation.ForeignKeys.Count);
-                    Assert.Equal(firstOperation.Name, thirdOperation.Table);
+                    Assert.Equal(0, createFirstTableOperation.ForeignKeys.Count);
+                    Assert.Equal(1, createSecondTableOperation.ForeignKeys.Count);
+                    Assert.Equal(createFirstTableOperation.Name, addFkOperation.Table);
                 });
         }
 
@@ -167,7 +166,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     {
                         x.ToTable("Cats", "dbo");
                         x.Property<int>("Id");
-                        x.HasKey("Id");
+                        x.HasKey("Id").HasName("PK_Cat");
                     }),
                 operations =>
                 {
@@ -319,7 +318,8 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 });
         }
 
-        [Theory]
+        [ConditionalTheory]
+        [FrameworkSkipCondition(RuntimeFrameworks.Mono, SkipReason = "Mono's type comparisons for empty byte arrays is incorrect")]
         [InlineData(typeof(int), 0)]
         [InlineData(typeof(int?), 0)]
         [InlineData(typeof(string), "")]
@@ -502,7 +502,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                         x.Property<int>("Id");
                         x.HasKey("Id");
                         x.Property<string>("Name")
-                            .HasColumnType("nvarchar(30)")
+                            .HasColumnType("varchar(30)")
                             .IsRequired()
                             .HasDefaultValue("Puff")
                             .HasDefaultValueSql("CreatePumaName()");
@@ -515,7 +515,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                         x.Property<int>("Id");
                         x.HasKey("Id");
                         x.Property<string>("Name")
-                            .HasColumnType("nvarchar(450)")
+                            .HasColumnType("varchar(450)")
                             .IsRequired()
                             .HasDefaultValue("Puff")
                             .HasDefaultValueSql("CreatePumaName()");
@@ -529,10 +529,40 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     Assert.Equal("Puma", operation.Table);
                     Assert.Equal("Name", operation.Name);
                     Assert.Equal(typeof(string), operation.ClrType);
-                    Assert.Equal("nvarchar(450)", operation.ColumnType);
+                    Assert.Equal("varchar(450)", operation.ColumnType);
                     Assert.False(operation.IsNullable);
                     Assert.Equal("Puff", operation.DefaultValue);
                     Assert.Equal("CreatePumaName()", operation.DefaultValueSql);
+                });
+        }
+
+        [Fact]
+        public void Alter_column_max_length()
+        {
+            Execute(
+                source => source.Entity(
+                    "Toad",
+                    x =>
+                    {
+                        x.Property<int>("Id");
+                        x.Property<string>("Name");
+                    }),
+                target => target.Entity(
+                    "Toad",
+                    x =>
+                    {
+                        x.Property<int>("Id");
+                        x.Property<string>("Name")
+                            .HasMaxLength(30);
+                    }),
+                operations =>
+                {
+                    Assert.Equal(1, operations.Count);
+
+                    var operation = Assert.IsType<AlterColumnOperation>(operations[0]);
+                    Assert.Equal("Toad", operation.Table);
+                    Assert.Equal("Name", operation.Name);
+                    Assert.True(operation.IsDestructiveChange);
                 });
         }
 
@@ -928,18 +958,24 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     }),
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<AddForeignKeyOperation>(operations[0]);
-                    Assert.Equal("dbo", operation.Schema);
-                    Assert.Equal("Amoeba", operation.Table);
-                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", operation.Name);
-                    Assert.Equal(new[] { "ParentId" }, operation.Columns);
-                    Assert.Equal("dbo", operation.PrincipalSchema);
-                    Assert.Equal("Amoeba", operation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, operation.PrincipalColumns);
-                    Assert.Equal(ReferentialAction.Cascade, operation.OnDelete);
-                    Assert.Equal(ReferentialAction.NoAction, operation.OnUpdate);
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[0]);
+                    Assert.Equal("dbo", createIndexOperation.Schema);
+                    Assert.Equal("Amoeba", createIndexOperation.Table);
+                    Assert.Equal("IX_Amoeba_ParentId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, createIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
+                    Assert.Equal("dbo", addFkOperation.Schema);
+                    Assert.Equal("Amoeba", addFkOperation.Table);
+                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", addFkOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, addFkOperation.Columns);
+                    Assert.Equal("dbo", addFkOperation.PrincipalSchema);
+                    Assert.Equal("Amoeba", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
+                    Assert.Equal(ReferentialAction.Cascade, addFkOperation.OnDelete);
+                    Assert.Equal(ReferentialAction.NoAction, addFkOperation.OnUpdate);
                 });
         }
 
@@ -968,18 +1004,24 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     }),
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<AddForeignKeyOperation>(operations[0]);
-                    Assert.Equal("dbo", operation.Schema);
-                    Assert.Equal("Amoeba", operation.Table);
-                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", operation.Name);
-                    Assert.Equal(new[] { "ParentId" }, operation.Columns);
-                    Assert.Equal("dbo", operation.PrincipalSchema);
-                    Assert.Equal("Amoeba", operation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, operation.PrincipalColumns);
-                    Assert.Equal(ReferentialAction.Restrict, operation.OnDelete);
-                    Assert.Equal(ReferentialAction.NoAction, operation.OnUpdate);
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[0]);
+                    Assert.Equal("dbo", createIndexOperation.Schema);
+                    Assert.Equal("Amoeba", createIndexOperation.Table);
+                    Assert.Equal("IX_Amoeba_ParentId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, createIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
+                    Assert.Equal("dbo", addFkOperation.Schema);
+                    Assert.Equal("Amoeba", addFkOperation.Table);
+                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", addFkOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, addFkOperation.Columns);
+                    Assert.Equal("dbo", addFkOperation.PrincipalSchema);
+                    Assert.Equal("Amoeba", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
+                    Assert.Equal(ReferentialAction.Restrict, addFkOperation.OnDelete);
+                    Assert.Equal(ReferentialAction.NoAction, addFkOperation.OnUpdate);
                 });
         }
 
@@ -1008,18 +1050,24 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     }),
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<AddForeignKeyOperation>(operations[0]);
-                    Assert.Equal("dbo", operation.Schema);
-                    Assert.Equal("Amoeba", operation.Table);
-                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", operation.Name);
-                    Assert.Equal(new[] { "ParentId" }, operation.Columns);
-                    Assert.Equal("dbo", operation.PrincipalSchema);
-                    Assert.Equal("Amoeba", operation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, operation.PrincipalColumns);
-                    Assert.Equal(ReferentialAction.Cascade, operation.OnDelete);
-                    Assert.Equal(ReferentialAction.NoAction, operation.OnUpdate);
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[0]);
+                    Assert.Equal("dbo", createIndexOperation.Schema);
+                    Assert.Equal("Amoeba", createIndexOperation.Table);
+                    Assert.Equal("IX_Amoeba_ParentId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, createIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
+                    Assert.Equal("dbo", addFkOperation.Schema);
+                    Assert.Equal("Amoeba", addFkOperation.Table);
+                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", addFkOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, addFkOperation.Columns);
+                    Assert.Equal("dbo", addFkOperation.PrincipalSchema);
+                    Assert.Equal("Amoeba", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
+                    Assert.Equal(ReferentialAction.Cascade, addFkOperation.OnDelete);
+                    Assert.Equal(ReferentialAction.NoAction, addFkOperation.OnUpdate);
                 });
         }
 
@@ -1048,18 +1096,24 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     }),
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<AddForeignKeyOperation>(operations[0]);
-                    Assert.Equal("dbo", operation.Schema);
-                    Assert.Equal("Amoeba", operation.Table);
-                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", operation.Name);
-                    Assert.Equal(new[] { "ParentId" }, operation.Columns);
-                    Assert.Equal("dbo", operation.PrincipalSchema);
-                    Assert.Equal("Amoeba", operation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, operation.PrincipalColumns);
-                    Assert.Equal(ReferentialAction.Restrict, operation.OnDelete);
-                    Assert.Equal(ReferentialAction.NoAction, operation.OnUpdate);
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[0]);
+                    Assert.Equal("dbo", createIndexOperation.Schema);
+                    Assert.Equal("Amoeba", createIndexOperation.Table);
+                    Assert.Equal("IX_Amoeba_ParentId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, createIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
+                    Assert.Equal("dbo", addFkOperation.Schema);
+                    Assert.Equal("Amoeba", addFkOperation.Table);
+                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", addFkOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, addFkOperation.Columns);
+                    Assert.Equal("dbo", addFkOperation.PrincipalSchema);
+                    Assert.Equal("Amoeba", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
+                    Assert.Equal(ReferentialAction.Restrict, addFkOperation.OnDelete);
+                    Assert.Equal(ReferentialAction.NoAction, addFkOperation.OnUpdate);
                 });
         }
 
@@ -1088,18 +1142,24 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     }),
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<AddForeignKeyOperation>(operations[0]);
-                    Assert.Equal("dbo", operation.Schema);
-                    Assert.Equal("Amoeba", operation.Table);
-                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", operation.Name);
-                    Assert.Equal(new[] { "ParentId" }, operation.Columns);
-                    Assert.Equal("dbo", operation.PrincipalSchema);
-                    Assert.Equal("Amoeba", operation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, operation.PrincipalColumns);
-                    Assert.Equal(ReferentialAction.SetNull, operation.OnDelete);
-                    Assert.Equal(ReferentialAction.NoAction, operation.OnUpdate);
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[0]);
+                    Assert.Equal("dbo", createIndexOperation.Schema);
+                    Assert.Equal("Amoeba", createIndexOperation.Table);
+                    Assert.Equal("IX_Amoeba_ParentId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, createIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
+                    Assert.Equal("dbo", addFkOperation.Schema);
+                    Assert.Equal("Amoeba", addFkOperation.Table);
+                    Assert.Equal("FK_Amoeba_Amoeba_ParentId", addFkOperation.Name);
+                    Assert.Equal(new[] { "ParentId" }, addFkOperation.Columns);
+                    Assert.Equal("dbo", addFkOperation.PrincipalSchema);
+                    Assert.Equal("Amoeba", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
+                    Assert.Equal(ReferentialAction.SetNull, addFkOperation.OnDelete);
+                    Assert.Equal(ReferentialAction.NoAction, addFkOperation.OnUpdate);
                 });
         }
 
@@ -1128,12 +1188,18 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     }),
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<DropForeignKeyOperation>(operations[0]);
-                    Assert.Equal("dbo", operation.Schema);
-                    Assert.Equal("Anemone", operation.Table);
-                    Assert.Equal("FK_Anemone_Anemone_ParentId", operation.Name);
+                    var dropFkOperation = Assert.IsType<DropForeignKeyOperation>(operations[0]);
+                    Assert.Equal("dbo", dropFkOperation.Schema);
+                    Assert.Equal("Anemone", dropFkOperation.Table);
+                    Assert.Equal("FK_Anemone_Anemone_ParentId", dropFkOperation.Name);
+
+                    var dropIndexOperation = Assert.IsType<DropIndexOperation>(operations[1]);
+                    Assert.Equal("dbo", dropIndexOperation.Schema);
+                    Assert.Equal("Anemone", dropIndexOperation.Table);
+                    Assert.Equal("IX_Anemone_ParentId", dropIndexOperation.Name);
+
                 });
         }
 
@@ -1209,21 +1275,32 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     }),
                 operations =>
                 {
-                    Assert.Equal(2, operations.Count);
+                    Assert.Equal(4, operations.Count);
 
-                    var dropOperation = Assert.IsType<DropForeignKeyOperation>(operations[0]);
-                    Assert.Equal("dbo", dropOperation.Schema);
-                    Assert.Equal("Mushroom", dropOperation.Table);
-                    Assert.Equal("FK_Mushroom_Mushroom_ParentId1", dropOperation.Name);
+                    var dropFkOperation = Assert.IsType<DropForeignKeyOperation>(operations[0]);
+                    Assert.Equal("dbo", dropFkOperation.Schema);
+                    Assert.Equal("Mushroom", dropFkOperation.Table);
+                    Assert.Equal("FK_Mushroom_Mushroom_ParentId1", dropFkOperation.Name);
 
-                    var addOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
-                    Assert.Equal("dbo", addOperation.Schema);
-                    Assert.Equal("Mushroom", addOperation.Table);
-                    Assert.Equal("FK_Mushroom_Mushroom_ParentId1", addOperation.Name);
-                    Assert.Equal(new[] { "ParentId2" }, addOperation.Columns);
-                    Assert.Equal("dbo", addOperation.PrincipalSchema);
-                    Assert.Equal("Mushroom", addOperation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, addOperation.PrincipalColumns);
+                    var dropIndexOperation = Assert.IsType<DropIndexOperation>(operations[1]);
+                    Assert.Equal("dbo", dropIndexOperation.Schema);
+                    Assert.Equal("Mushroom", dropIndexOperation.Table);
+                    Assert.Equal("IX_Mushroom_ParentId1", dropIndexOperation.Name);
+
+                    var addIndexOperation = Assert.IsType<CreateIndexOperation>(operations[2]);
+                    Assert.Equal("dbo", addIndexOperation.Schema);
+                    Assert.Equal("Mushroom", addIndexOperation.Table);
+                    Assert.Equal("IX_Mushroom_ParentId2", addIndexOperation.Name);
+                    Assert.Equal(new[] { "ParentId2" }, addIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[3]);
+                    Assert.Equal("dbo", addFkOperation.Schema);
+                    Assert.Equal("Mushroom", addFkOperation.Table);
+                    Assert.Equal("FK_Mushroom_Mushroom_ParentId1", addFkOperation.Name);
+                    Assert.Equal(new[] { "ParentId2" }, addFkOperation.Columns);
+                    Assert.Equal("dbo", addFkOperation.PrincipalSchema);
+                    Assert.Equal("Mushroom", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
                 });
         }
 
@@ -1886,7 +1963,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     {
                         x.Property<int>("Id");
                         x.HasKey("Id");
-                        x.Property<int>("Value").HasColumnType("integer");
+                        x.Property<int>("Value").HasColumnType("bigint");
                     }),
                 operations =>
                 {
@@ -2050,6 +2127,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 operations => Assert.Collection(
                     operations,
                     o => Assert.IsType<AddColumnOperation>(o),
+                    o => Assert.IsType<CreateIndexOperation>(o),
                     o => Assert.IsType<AddForeignKeyOperation>(o)));
         }
 
@@ -2076,6 +2154,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 operations => Assert.Collection(
                     operations,
                     o => Assert.IsType<DropForeignKeyOperation>(o),
+                    o => Assert.IsType<DropIndexOperation>(o),
                     o => Assert.IsType<DropColumnOperation>(o)));
         }
 
@@ -2113,6 +2192,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 operations => Assert.Collection(
                     operations,
                     o => Assert.IsType<CreateTableOperation>(o),
+                    o => Assert.IsType<CreateIndexOperation>(o),
                     o => Assert.IsType<AddForeignKeyOperation>(o)));
         }
 
@@ -2150,6 +2230,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 operations => Assert.Collection(
                     operations,
                     o => Assert.IsType<DropForeignKeyOperation>(o),
+                    o => Assert.IsType<DropIndexOperation>(o),
                     o => Assert.IsType<DropTableOperation>(o)));
         }
 
@@ -2199,6 +2280,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     operations,
                     o => Assert.IsType<AddColumnOperation>(o),
                     o => Assert.IsType<AddUniqueConstraintOperation>(o),
+                    o => Assert.IsType<CreateIndexOperation>(o),
                     o => Assert.IsType<AddForeignKeyOperation>(o)));
         }
 
@@ -2247,6 +2329,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 operations => Assert.Collection(
                     operations,
                     o => Assert.IsType<DropForeignKeyOperation>(o),
+                    o => Assert.IsType<DropIndexOperation>(o),
                     o => Assert.IsType<DropUniqueConstraintOperation>(o),
                     o => Assert.IsType<DropColumnOperation>(o)));
         }
@@ -2277,13 +2360,15 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(2, operations.Count);
+                    Assert.Equal(3, operations.Count);
 
                     var operation1 = Assert.IsType<CreateTableOperation>(operations[0]);
                     Assert.Equal("Maker", operation1.Name);
 
                     var operation2 = Assert.IsType<CreateTableOperation>(operations[1]);
                     Assert.Equal("Helicopter", operation2.Name);
+
+                    var operation3 = Assert.IsType<CreateIndexOperation>(operations[2]);
                 });
         }
 
@@ -2428,9 +2513,9 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     {
                         x.ToTable("Flies");
                         x.Property<int>("Id");
-                        x.HasKey("Id");
+                        x.HasKey("Id").HasName("PK_Fly");
                         x.Property<string>("Name");
-                        x.HasAlternateKey("Name");
+                        x.HasAlternateKey("Name").HasName("AK_Fly_Name");
                     }),
                 operations =>
                 {
@@ -2459,9 +2544,9 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     {
                         x.ToTable("Gnats");
                         x.Property<int>("Id");
-                        x.HasKey("Id");
+                        x.HasKey("Id").HasName("PK_Gnat");
                         x.Property<string>("Name");
-                        x.HasIndex("Name");
+                        x.HasIndex("Name").HasName("IX_Gnat_Name");
                     }),
                 operations =>
                 {
@@ -2627,9 +2712,10 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                         {
                             x.ToTable("Zonkeys");
                             x.Property<int>("Id");
-                            x.HasKey("Id");
+                            x.HasKey("Id").HasName("PK_Zonkey");
                             x.Property<int>("ParentId");
-                            x.HasOne("Zebra").WithMany().HasForeignKey("ParentId");
+                            x.HasOne("Zebra").WithMany().HasForeignKey("ParentId").HasConstraintName("FK_Zonkey_Zebra_ParentId");
+                            x.HasIndex("ParentId").HasName("IX_Zonkey_ParentId");
                         });
                 },
                 operations =>
@@ -2670,7 +2756,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                         {
                             x.ToTable("Jaguars");
                             x.Property<int>("Id");
-                            x.HasKey("Id");
+                            x.HasKey("Id").HasName("PK_Jaguar");
                         });
                     target.Entity(
                         "Jaglion",
@@ -2679,7 +2765,8 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                             x.Property<int>("Id");
                             x.HasKey("Id");
                             x.Property<int>("ParentId");
-                            x.HasOne("Jaguar").WithMany().HasForeignKey("ParentId");
+                            x.HasOne("Jaguar").WithMany().HasForeignKey("ParentId")
+                                .HasConstraintName("FK_Jaglion_Jaguar_ParentId");
                         });
                 },
                 operations =>
@@ -3089,7 +3176,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     var operation = Assert.IsType<CreateIndexOperation>(operations[0]);
                     Assert.Equal("dbo", operation.Schema);
                     Assert.Equal("Animal", operation.Table);
-                    Assert.Equal("IX_Minnow_Name", operation.Name);
+                    Assert.Equal("IX_Animal_Name", operation.Name);
                     Assert.Equal(new[] { "Name" }, operation.Columns);
                 });
         }
@@ -3157,7 +3244,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     var operation = Assert.IsType<RenameIndexOperation>(operations[0]);
                     Assert.Equal("dbo", operation.Schema);
                     Assert.Equal("Animal", operation.Table);
-                    Assert.Equal("IX_Pike_Name", operation.Name);
+                    Assert.Equal("IX_Animal_Name", operation.Name);
                     Assert.Equal("IX_Animal_Pike_Name", operation.NewName);
                 });
         }
@@ -3224,7 +3311,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     var operation = Assert.IsType<DropIndexOperation>(operations[0]);
                     Assert.Equal("dbo", operation.Schema);
                     Assert.Equal("Animal", operation.Table);
-                    Assert.Equal("IX_Catfish_Name", operation.Name);
+                    Assert.Equal("IX_Animal_Name", operation.Name);
                 });
         }
 
@@ -3255,7 +3342,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(2, operations.Count);
+                    Assert.Equal(3, operations.Count);
                     Assert.IsType<CreateTableOperation>(operations[0]);
 
                     var createTableOperation = Assert.IsType<CreateTableOperation>(operations[1]);
@@ -3267,6 +3354,12 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     Assert.Equal(new[] { "HandlerId" }, addForeignKeyOperation.Columns);
                     Assert.Equal("Person", addForeignKeyOperation.PrincipalTable);
                     Assert.Equal(new[] { "Id" }, addForeignKeyOperation.PrincipalColumns);
+
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[2]);
+                    Assert.Equal("Animal", createIndexOperation.Table);
+                    Assert.Equal("IX_Animal_HandlerId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "HandlerId" }, createIndexOperation.Columns);
+
                 });
         }
 
@@ -3309,7 +3402,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(2, operations.Count);
+                    Assert.Equal(3, operations.Count);
 
                     Assert.IsType<CreateTableOperation>(operations[0]);
 
@@ -3318,10 +3411,15 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     Assert.Equal(1, createTableOperation.ForeignKeys.Count);
 
                     var addForeignKeyOperation = createTableOperation.ForeignKeys[0];
-                    Assert.Equal("FK_Stag_Person_HandlerId", addForeignKeyOperation.Name);
+                    Assert.Equal("FK_Animal_Person_HandlerId", addForeignKeyOperation.Name);
                     Assert.Equal(new[] { "HandlerId" }, addForeignKeyOperation.Columns);
                     Assert.Equal("Person", addForeignKeyOperation.PrincipalTable);
                     Assert.Equal(new[] { "Id" }, addForeignKeyOperation.PrincipalColumns);
+
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[2]);
+                    Assert.Equal("Animal", createIndexOperation.Table);
+                    Assert.Equal("IX_Animal_HandlerId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "HandlerId" }, createIndexOperation.Columns);
                 });
         }
 
@@ -3364,7 +3462,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(2, operations.Count);
+                    Assert.Equal(3, operations.Count);
 
                     Assert.IsType<CreateTableOperation>(operations[0]);
 
@@ -3373,10 +3471,15 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     Assert.Equal(1, createTableOperation.ForeignKeys.Count);
 
                     var addForeignKeyOperation = createTableOperation.ForeignKeys[0];
-                    Assert.Equal("FK_Person_DomesticAnimal_PetId", addForeignKeyOperation.Name);
+                    Assert.Equal("FK_Person_Animal_PetId", addForeignKeyOperation.Name);
                     Assert.Equal(new[] { "PetId" }, addForeignKeyOperation.Columns);
                     Assert.Equal("Animal", addForeignKeyOperation.PrincipalTable);
                     Assert.Equal(new[] { "Id" }, addForeignKeyOperation.PrincipalColumns);
+
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[2]);
+                    Assert.Equal("Person", createIndexOperation.Table);
+                    Assert.Equal("IX_Person_PetId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "PetId" }, createIndexOperation.Columns);
                 });
         }
 
@@ -3412,18 +3515,41 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
                     var createTableOperation = Assert.IsType<CreateTableOperation>(operations[0]);
                     Assert.Equal(1, createTableOperation.ForeignKeys.Count);
 
                     var addForeignKeyOperation = createTableOperation.ForeignKeys[0];
-                    Assert.Equal("FK_Predator_Animal_PreyId", addForeignKeyOperation.Name);
+                    Assert.Equal("FK_Animal_Animal_PreyId", addForeignKeyOperation.Name);
                     Assert.Equal(new[] { "PreyId" }, addForeignKeyOperation.Columns);
                     Assert.Equal("Animal", addForeignKeyOperation.PrincipalTable);
                     Assert.Equal(new[] { "Id" }, addForeignKeyOperation.PrincipalColumns);
+
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[1]);
+                    Assert.Equal("Animal", createIndexOperation.Table);
+                    Assert.Equal("IX_Animal_PreyId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "PreyId" }, createIndexOperation.Columns);
                 });
         }
+
+        [Fact]
+        public void Create_table_with_overlapping_columns_in_hierarchy()
+            => Execute(
+                _ => { },
+                modelBuilder =>
+                {
+                    modelBuilder.Entity("Animal").Property<int>("Id");
+                    modelBuilder.Entity("Cat").HasBaseType("Animal").Property<int>("BreederId");
+                    modelBuilder.Entity("Dog").HasBaseType("Animal").Property<int>("BreederId");
+                },
+                operations =>
+                {
+                    Assert.Equal(1, operations.Count);
+
+                    var createTableOperation = Assert.IsType<CreateTableOperation>(operations[0]);
+                    Assert.Equal(2, createTableOperation.Columns.Count);
+                });
 
         [Fact]
         public void Add_foreign_key_on_base_type()
@@ -3470,14 +3596,19 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<AddForeignKeyOperation>(operations[0]);
-                    Assert.Equal("Animal", operation.Table);
-                    Assert.Equal("FK_Animal_Person_HandlerId", operation.Name);
-                    Assert.Equal(new[] { "HandlerId" }, operation.Columns);
-                    Assert.Equal("Person", operation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, operation.PrincipalColumns);
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[0]);
+                    Assert.Equal("Animal", createIndexOperation.Table);
+                    Assert.Equal("IX_Animal_HandlerId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "HandlerId" }, createIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
+                    Assert.Equal("Animal", addFkOperation.Table);
+                    Assert.Equal("FK_Animal_Person_HandlerId", addFkOperation.Name);
+                    Assert.Equal(new[] { "HandlerId" }, addFkOperation.Columns);
+                    Assert.Equal("Person", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
                 });
         }
 
@@ -3550,14 +3681,19 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<AddForeignKeyOperation>(operations[0]);
-                    Assert.Equal("Animal", operation.Table);
-                    Assert.Equal("FK_GameAnimal_Person_HunterId", operation.Name);
-                    Assert.Equal(new[] { "HunterId" }, operation.Columns);
-                    Assert.Equal("Person", operation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, operation.PrincipalColumns);
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[0]);
+                    Assert.Equal("Animal", createIndexOperation.Table);
+                    Assert.Equal("IX_Animal_HunterId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "HunterId" }, createIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
+                    Assert.Equal("Animal", addFkOperation.Table);
+                    Assert.Equal("FK_Animal_Person_HunterId", addFkOperation.Name);
+                    Assert.Equal(new[] { "HunterId" }, addFkOperation.Columns);
+                    Assert.Equal("Person", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
                 });
         }
 
@@ -3630,14 +3766,19 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<AddForeignKeyOperation>(operations[0]);
-                    Assert.Equal("Person", operation.Table);
-                    Assert.Equal("FK_Person_TrophyAnimal_TrophyId", operation.Name);
-                    Assert.Equal(new[] { "TrophyId" }, operation.Columns);
-                    Assert.Equal("Animal", operation.PrincipalTable);
-                    Assert.Equal(new[] { "Id" }, operation.PrincipalColumns);
+                    var createIndexOperation = Assert.IsType<CreateIndexOperation>(operations[0]);
+                    Assert.Equal("Person", createIndexOperation.Table);
+                    Assert.Equal("IX_Person_TrophyId", createIndexOperation.Name);
+                    Assert.Equal(new[] { "TrophyId" }, createIndexOperation.Columns);
+
+                    var addFkOperation = Assert.IsType<AddForeignKeyOperation>(operations[1]);
+                    Assert.Equal("Person", addFkOperation.Table);
+                    Assert.Equal("FK_Person_Animal_TrophyId", addFkOperation.Name);
+                    Assert.Equal(new[] { "TrophyId" }, addFkOperation.Columns);
+                    Assert.Equal("Animal", addFkOperation.PrincipalTable);
+                    Assert.Equal(new[] { "Id" }, addFkOperation.PrincipalColumns);
                 });
         }
 
@@ -3710,11 +3851,15 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                 },
                 operations =>
                 {
-                    Assert.Equal(1, operations.Count);
+                    Assert.Equal(2, operations.Count);
 
-                    var operation = Assert.IsType<DropForeignKeyOperation>(operations[0]);
-                    Assert.Equal("Animal", operation.Table);
-                    Assert.Equal("FK_MountAnimal_Person_RiderId", operation.Name);
+                    var dropFkOperation = Assert.IsType<DropForeignKeyOperation>(operations[0]);
+                    Assert.Equal("Animal", dropFkOperation.Table);
+                    Assert.Equal("FK_Animal_Person_RiderId", dropFkOperation.Name);
+
+                    var dropIndexOperation = Assert.IsType<DropIndexOperation>(operations[1]);
+                    Assert.Equal("Animal", dropIndexOperation.Table);
+                    Assert.Equal("IX_Animal_RiderId", dropIndexOperation.Name);
                 });
         }
 

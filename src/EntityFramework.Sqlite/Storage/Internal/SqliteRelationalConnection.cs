@@ -16,20 +16,20 @@ namespace Microsoft.Data.Entity.Storage.Internal
 {
     public class SqliteRelationalConnection : RelationalConnection
     {
-        private readonly ISqlCommandBuilder _sqlCommandBuilder;
+        private readonly IRawSqlCommandBuilder _rawSqlCommandBuilder;
         private readonly bool _enforceForeignKeys = true;
         private int _openedCount;
 
         public SqliteRelationalConnection(
-            [NotNull] ISqlCommandBuilder sqlCommandBuilder,
+            [NotNull] IRawSqlCommandBuilder rawSqlCommandBuilder,
             [NotNull] IDbContextOptions options,
             // ReSharper disable once SuggestBaseTypeForParameter
             [NotNull] ILogger<SqliteRelationalConnection> logger)
             : base(options, logger)
         {
-            Check.NotNull(sqlCommandBuilder, nameof(sqlCommandBuilder));
+            Check.NotNull(rawSqlCommandBuilder, nameof(rawSqlCommandBuilder));
 
-            _sqlCommandBuilder = sqlCommandBuilder;
+            _rawSqlCommandBuilder = rawSqlCommandBuilder;
 
             var optionsExtension = options.Extensions.OfType<SqliteOptionsExtension>().FirstOrDefault();
             if (optionsExtension != null)
@@ -75,12 +75,30 @@ namespace Microsoft.Data.Entity.Storage.Internal
 
         private void EnableForeignKeys()
         {
-            if (!_enforceForeignKeys)
+            if (_enforceForeignKeys)
             {
-                return;
+                _rawSqlCommandBuilder.Build("PRAGMA foreign_keys=ON;").ExecuteNonQuery(this);
             }
+            else
+            {
+                _rawSqlCommandBuilder.Build("PRAGMA foreign_keys=OFF;").ExecuteNonQuery(this);
+            }
+        }
 
-            _sqlCommandBuilder.Build("PRAGMA foreign_keys=ON;").ExecuteNonQuery(this);
+        public virtual SqliteRelationalConnection CreateReadOnlyConnection()
+        {
+            var builder = new SqliteConnectionStringBuilder(ConnectionString)
+            {
+                Mode = SqliteOpenMode.ReadOnly
+            };
+
+            var options = new DbContextOptionsBuilder();
+            options.UseSqlite(builder.ToString());
+
+            return new SqliteRelationalConnection(
+                _rawSqlCommandBuilder,
+                options.Options,
+                (ILogger<SqliteRelationalConnection>)Logger);
         }
     }
 }

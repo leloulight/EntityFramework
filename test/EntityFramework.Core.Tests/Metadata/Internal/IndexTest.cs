@@ -18,11 +18,11 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var property1 = entityType.GetOrAddProperty(Customer.IdProperty);
             var property2 = entityType.GetOrAddProperty(Customer.NameProperty);
 
-            var index = new Index(new[] { property1, property2 });
+            var index = entityType.AddIndex(new[] { property1, property2 }, ConfigurationSource.Convention);
 
             Assert.True(new[] { property1, property2 }.SequenceEqual(index.Properties));
-            Assert.Null(index.IsUnique);
-            Assert.False(((IIndex)index).IsUnique);
+            Assert.False(index.IsUnique);
+            Assert.Equal(ConfigurationSource.Convention, index.GetConfigurationSource());
         }
 
         [Fact]
@@ -32,23 +32,11 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var property1 = entityType.GetOrAddProperty(Customer.IdProperty);
             var property2 = entityType.GetOrAddProperty(Customer.NameProperty);
 
-            var index = new Index(new[] { property1, property2 }) { IsUnique = true };
+            var index = entityType.AddIndex(new[] { property1, property2 });
+            index.IsUnique = true;
 
             Assert.True(new[] { property1, property2 }.SequenceEqual(index.Properties));
-            Assert.True(index.IsUnique.Value);
-        }
-
-        [Fact]
-        public void Constructor_check_arguments()
-        {
-            Assert.Equal(
-                "properties",
-                // ReSharper disable once AssignNullToNotNullAttribute
-                Assert.Throws<ArgumentNullException>(() => new Index(null)).ParamName);
-
-            Assert.Equal(
-                CoreStrings.CollectionArgumentIsEmpty("properties"),
-                Assert.Throws<ArgumentException>(() => new Index(new Property[0])).Message);
+            Assert.True(index.IsUnique);
         }
 
         [Fact]
@@ -57,9 +45,9 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var property1 = new Model().AddEntityType(typeof(Customer)).GetOrAddProperty(Customer.IdProperty);
             var property2 = new Model().AddEntityType(typeof(Order)).GetOrAddProperty(Order.IdProperty);
 
-            Assert.Equal(CoreStrings.InconsistentEntityType("properties"),
+            Assert.Equal(CoreStrings.IndexPropertiesWrongEntity($"{{'{property1.Name}', '{property2.Name}'}}", typeof(Customer).Name),
                 Assert.Throws<ArgumentException>(
-                    () => new Index(new[] { property1, property2 })).Message);
+                    () => property1.DeclaringEntityType.AddIndex(new[] { property1, property2 })).Message);
         }
 
         private class Customer

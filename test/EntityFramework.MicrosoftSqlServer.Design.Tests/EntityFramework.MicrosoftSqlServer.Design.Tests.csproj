@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Microsoft.Data.Entity.SqlServer.Design</RootNamespace>
     <AssemblyName>EntityFramework.MicrosoftSqlServer.Design.Tests</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -26,7 +26,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -38,6 +38,10 @@
     <ProjectReference Include="..\..\src\EntityFramework.MicrosoftSqlServer.Design\EntityFramework.MicrosoftSqlServer.Design.csproj">
       <Project>{9afdf1fa-1710-48e3-9802-7ab9dac91b35}</Project>
       <Name>EntityFramework.MicrosoftSqlServer.Design</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\EntityFramework.Relational.Design\EntityFramework.Relational.Design.csproj">
+      <Project>{7028a7e3-0ad8-4606-a922-8189c8a704e0}</Project>
+      <Name>EntityFramework.Relational.Design</Name>
     </ProjectReference>
     <ProjectReference Include="..\EntityFramework.Core.Tests\EntityFramework.Core.Tests.csproj">
       <Project>{ef361118-7d0d-453e-ada4-2f24fbee196c}</Project>

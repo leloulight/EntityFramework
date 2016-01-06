@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Microsoft.Data.Entity.SqlServer</RootNamespace>
     <AssemblyName>EntityFramework.MicrosoftSqlServer.Tests</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -26,7 +26,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -36,8 +36,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ApiConsistencyTest.cs" />
+    <Compile Include="Metadata\Conventions\SqlServerConventionSetBuilderTests.cs" />
     <Compile Include="Metadata\InternalSqlServerMetadataBuilderExtensionsTest.cs" />
-    <Compile Include="Metadata\ModelConventions\SqlServerValueGenerationStrategyConventionTest.cs" />
+    <Compile Include="Metadata\Conventions\SqlServerValueGenerationStrategyConventionTest.cs" />
     <Compile Include="Metadata\SqlServerBuilderExtensionsTest.cs" />
     <Compile Include="Metadata\SqlServerMetadataExtensionsTest.cs" />
     <Compile Include="Migrations\SqlServerHistoryRepositoryTest.cs" />

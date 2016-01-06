@@ -1,12 +1,9 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Infrastructure;
-using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Internal;
 using Xunit;
 
@@ -28,7 +25,7 @@ namespace Microsoft.Data.Entity.InMemory.FunctionalTests
         }
 
         private void Can_add_update_delete_end_to_end<T>()
-            where T : class
+            where T : class, new()
         {
             var type = typeof(T);
             var model = new Model();
@@ -45,7 +42,7 @@ namespace Microsoft.Data.Entity.InMemory.FunctionalTests
             T entity;
             using (var context = new DbContext(_fixture.ServiceProvider, optionsBuilder.Options))
             {
-                var entry = context.ChangeTracker.GetInfrastructure().CreateNewEntry(entityType);
+                var entry = context.ChangeTracker.GetInfrastructure().GetOrCreateEntry(new T());
                 entity = (T)entry.Entity;
 
                 entry[idProperty] = 42;

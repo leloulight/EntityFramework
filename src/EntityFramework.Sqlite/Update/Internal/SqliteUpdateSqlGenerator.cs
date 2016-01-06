@@ -12,38 +12,40 @@ namespace Microsoft.Data.Entity.Update.Internal
 {
     public class SqliteUpdateSqlGenerator : UpdateSqlGenerator
     {
-        public SqliteUpdateSqlGenerator([NotNull] ISqlGenerator sqlGenerator)
-            : base(sqlGenerator)
+        public SqliteUpdateSqlGenerator([NotNull] ISqlGenerationHelper sqlGenerationHelper)
+            : base(sqlGenerationHelper)
         {
         }
 
-        protected override void AppendIdentityWhereCondition(StringBuilder builder, ColumnModification columnModification)
+        protected override void AppendIdentityWhereCondition(StringBuilder commandStringBuilder, ColumnModification columnModification)
         {
-            Check.NotNull(builder, nameof(builder));
+            Check.NotNull(commandStringBuilder, nameof(commandStringBuilder));
             Check.NotNull(columnModification, nameof(columnModification));
 
-            builder
-                .Append(SqlGenerator.DelimitIdentifier(columnModification.ColumnName))
+            commandStringBuilder
+                .Append(SqlGenerationHelper.DelimitIdentifier(columnModification.ColumnName))
                 .Append(" = ")
                 .Append("last_insert_rowid()");
         }
 
-        protected override void AppendSelectAffectedCountCommand(StringBuilder builder, string name, string schema)
+        protected override ResultSetMapping AppendSelectAffectedCountCommand(StringBuilder commandStringBuilder, string name, string schema, int commandPosition)
         {
-            Check.NotNull(builder, nameof(builder));
+            Check.NotNull(commandStringBuilder, nameof(commandStringBuilder));
             Check.NotEmpty(name, nameof(name));
 
-            builder
+            commandStringBuilder
                 .Append("SELECT changes()")
-                .Append(SqlGenerator.BatchCommandSeparator)
+                .Append(SqlGenerationHelper.StatementTerminator)
                 .AppendLine();
+
+            return ResultSetMapping.LastInResultSet;
         }
 
-        protected override void AppendRowsAffectedWhereCondition(StringBuilder builder, int expectedRowsAffected)
+        protected override void AppendRowsAffectedWhereCondition(StringBuilder commandStringBuilder, int expectedRowsAffected)
         {
-            Check.NotNull(builder, nameof(builder));
+            Check.NotNull(commandStringBuilder, nameof(commandStringBuilder));
 
-            builder.Append("changes() = " + expectedRowsAffected);
+            commandStringBuilder.Append("changes() = " + expectedRowsAffected);
         }
 
         public override string GenerateNextSequenceValueOperation(string name, string schema)

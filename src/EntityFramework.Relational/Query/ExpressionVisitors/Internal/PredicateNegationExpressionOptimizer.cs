@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using JetBrains.Annotations;
 using Remotion.Linq.Parsing;
 
 namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
@@ -19,16 +18,15 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
                 { ExpressionType.LessThan, ExpressionType.GreaterThanOrEqual }
             };
 
-        protected override Expression VisitBinary(
-            [NotNull] BinaryExpression expression)
+        protected override Expression VisitBinary(BinaryExpression node)
         {
-            var currentExpression = expression;
-            if (currentExpression.NodeType == ExpressionType.Equal
-                || currentExpression.NodeType == ExpressionType.NotEqual)
+            var currentExpression = node;
+            if ((currentExpression.NodeType == ExpressionType.Equal)
+                || (currentExpression.NodeType == ExpressionType.NotEqual))
             {
                 var leftUnary = currentExpression.Left as UnaryExpression;
-                if (leftUnary != null
-                    && leftUnary.NodeType == ExpressionType.Not)
+                if ((leftUnary != null)
+                    && (leftUnary.NodeType == ExpressionType.Not))
                 {
                     var leftNullable = BuildIsNullExpression(leftUnary.Operand) != null;
                     var rightNullable = BuildIsNullExpression(currentExpression.Right) != null;
@@ -46,8 +44,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
                 }
 
                 var rightUnary = currentExpression.Right as UnaryExpression;
-                if (rightUnary != null
-                    && rightUnary.NodeType == ExpressionType.Not)
+                if ((rightUnary != null)
+                    && (rightUnary.NodeType == ExpressionType.Not))
                 {
                     var leftNullable = BuildIsNullExpression(currentExpression.Left) != null;
                     var rightNullable = BuildIsNullExpression(rightUnary) != null;
@@ -68,7 +66,7 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             return base.VisitBinary(currentExpression);
         }
 
-        private Expression BuildIsNullExpression(Expression expression)
+        private static Expression BuildIsNullExpression(Expression expression)
         {
             var nullableExpressionsExtractor = new IsNullExpressionBuildingVisitor();
             nullableExpressionsExtractor.Visit(expression);
@@ -76,24 +74,23 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             return nullableExpressionsExtractor.ResultExpression;
         }
 
-        protected override Expression VisitUnary(
-            [NotNull] UnaryExpression expression)
+        protected override Expression VisitUnary(UnaryExpression node)
         {
-            if (expression.NodeType == ExpressionType.Not)
+            if (node.NodeType == ExpressionType.Not)
             {
-                var innerUnary = expression.Operand as UnaryExpression;
-                if (innerUnary != null
-                    && innerUnary.NodeType == ExpressionType.Not)
+                var innerUnary = node.Operand as UnaryExpression;
+                if ((innerUnary != null)
+                    && (innerUnary.NodeType == ExpressionType.Not))
                 {
                     // !(!(a)) => a
                     return Visit(innerUnary.Operand);
                 }
 
-                var innerBinary = expression.Operand as BinaryExpression;
+                var innerBinary = node.Operand as BinaryExpression;
                 if (innerBinary != null)
                 {
-                    if (innerBinary.NodeType == ExpressionType.Equal
-                        || innerBinary.NodeType == ExpressionType.NotEqual)
+                    if ((innerBinary.NodeType == ExpressionType.Equal)
+                        || (innerBinary.NodeType == ExpressionType.NotEqual))
                     {
                         // TODO: this is only valid for non-nullable terms, or if null semantics expansion is performed
                         // if user opts-out of the null semantics, we should not apply this rule
@@ -136,7 +133,7 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
                 }
             }
 
-            return base.VisitUnary(expression);
+            return base.VisitUnary(node);
         }
     }
 }

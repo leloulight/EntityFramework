@@ -12,6 +12,7 @@ using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Query.Expressions;
 using Microsoft.Data.Entity.Query.ExpressionVisitors;
 using Microsoft.Data.Entity.Query.ExpressionVisitors.Internal;
+using Microsoft.Data.Entity.Storage;
 using Remotion.Linq;
 using Remotion.Linq.Clauses;
 using Remotion.Linq.Clauses.ResultOperators;
@@ -78,6 +79,7 @@ namespace Microsoft.Data.Entity.Query.Internal
                 { typeof(LongCountResultOperator), HandleLongCount },
                 { typeof(DistinctResultOperator), HandleDistinct },
                 { typeof(FirstResultOperator), HandleFirst },
+                { typeof(GroupResultOperator), HandleGroup },
                 { typeof(LastResultOperator), HandleLast },
                 { typeof(MaxResultOperator), HandleMax },
                 { typeof(MinResultOperator), HandleMin },
@@ -316,9 +318,51 @@ namespace Microsoft.Data.Entity.Query.Internal
 
         private static Expression HandleFirst(HandlerContext handlerContext)
         {
-            handlerContext.SelectExpression.Limit = 1;
+            handlerContext.SelectExpression.Limit = Expression.Constant(1);
 
             return handlerContext.EvalOnClient(requiresClientResultOperator: false);
+        }
+
+        private static Expression HandleGroup(HandlerContext handlerContext)
+        {
+            var sqlTranslatingExpressionVisitor
+                = handlerContext.SqlTranslatingExpressionVisitorFactory
+                    .Create(
+                        handlerContext.QueryModelVisitor,
+                        handlerContext.SelectExpression);
+
+            var groupResultOperator = (GroupResultOperator)handlerContext.ResultOperator;
+
+            var sqlExpression
+                = sqlTranslatingExpressionVisitor.Visit(groupResultOperator.KeySelector);
+
+            if (sqlExpression != null)
+            {
+                handlerContext.SelectExpression.ClearOrderBy();
+
+                var columns = (sqlExpression as ConstantExpression)?.Value as Expression[];
+
+                if (columns != null)
+                {
+                    foreach (var column in columns)
+                    {
+                        handlerContext.SelectExpression
+                            .AddToOrderBy(new Ordering(column, OrderingDirection.Asc));
+                    }
+                }
+                else
+                {
+                    handlerContext.SelectExpression
+                        .AddToOrderBy(new Ordering(sqlExpression, OrderingDirection.Asc));
+                }
+            }
+
+            var oldGroupByCall = (MethodCallExpression)handlerContext.EvalOnClient();
+
+            return Expression.Call(
+                handlerContext.QueryModelVisitor.QueryCompilationContext.QueryMethodProvider.GroupByMethod
+                    .MakeGenericMethod(oldGroupByCall.Method.GetGenericArguments()),
+                oldGroupByCall.Arguments);
         }
 
         private static Expression HandleLast(HandlerContext handlerContext)
@@ -333,7 +377,7 @@ namespace Microsoft.Data.Entity.Query.Internal
                             : OrderingDirection.Asc;
                 }
 
-                handlerContext.SelectExpression.Limit = 1;
+                handlerContext.SelectExpression.Limit = Expression.Constant(1);
             }
 
             return handlerContext.EvalOnClient(requiresClientResultOperator: false);
@@ -395,11 +439,29 @@ namespace Microsoft.Data.Entity.Query.Internal
                         .Visit(handlerContext.SelectExpression.Predicate);
             }
 
+            var shapedQueryMethod = (MethodCallExpression)handlerContext.QueryModelVisitor.Expression;
+            var entityShaper = (EntityShaper)((ConstantExpression)shapedQueryMethod.Arguments[2]).Value;
+
             return Expression.Call(
-                handlerContext.QueryModelVisitor.QueryCompilationContext.LinqOperatorProvider.Cast
+                shapedQueryMethod.Method
+                    .GetGenericMethodDefinition()
                     .MakeGenericMethod(ofTypeResultOperator.SearchedItemType),
-                handlerContext.QueryModelVisitor.Expression);
+                shapedQueryMethod.Arguments[0],
+                shapedQueryMethod.Arguments[1],
+                Expression.Constant(
+                    _createDowncastingShaperMethodInfo
+                        .MakeGenericMethod(ofTypeResultOperator.SearchedItemType)
+                        .Invoke(null, new object[] { entityShaper })));
         }
+
+        private static readonly MethodInfo _createDowncastingShaperMethodInfo
+            = typeof(RelationalResultOperatorHandler).GetTypeInfo()
+                .GetDeclaredMethod(nameof(CreateDowncastingShaper));
+
+        [UsedImplicitly]
+        private static IShaper<TDerived> CreateDowncastingShaper<TDerived>(EntityShaper shaper)
+            where TDerived : class
+            => shaper.Cast<TDerived>();
 
         private class DiscriminatorReplacingExpressionVisitor : RelinqExpressionVisitor
         {
@@ -429,7 +491,7 @@ namespace Microsoft.Data.Entity.Query.Internal
 
         private static Expression HandleSingle(HandlerContext handlerContext)
         {
-            handlerContext.SelectExpression.Limit = 2;
+            handlerContext.SelectExpression.Limit = Expression.Constant(2);
 
             return handlerContext.EvalOnClient(requiresClientResultOperator: false);
         }
@@ -438,7 +500,7 @@ namespace Microsoft.Data.Entity.Query.Internal
         {
             var skipResultOperator = (SkipResultOperator)handlerContext.ResultOperator;
 
-            handlerContext.SelectExpression.Offset = skipResultOperator.GetConstantCount();
+            handlerContext.SelectExpression.Offset = skipResultOperator.Count;
 
             return handlerContext.EvalOnServer;
         }
@@ -447,7 +509,7 @@ namespace Microsoft.Data.Entity.Query.Internal
         {
             var takeResultOperator = (TakeResultOperator)handlerContext.ResultOperator;
 
-            handlerContext.SelectExpression.Limit = takeResultOperator.GetConstantCount();
+            handlerContext.SelectExpression.Limit = takeResultOperator.Count;
 
             return handlerContext.EvalOnServer;
         }

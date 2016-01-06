@@ -3,9 +3,10 @@
 
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
+using Microsoft.Data.Entity.Infrastructure.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
-using Microsoft.Data.Entity.Metadata.Conventions.Internal;
+using Microsoft.Data.Entity.Metadata.Conventions;
 using Microsoft.Data.Entity.Migrations;
 using Microsoft.Data.Entity.Migrations.Internal;
 using Microsoft.Data.Entity.Query.ExpressionTranslators.Internal;
@@ -26,9 +27,9 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         /// <summary>
         ///     <para>
-        ///         Adds the services required by the Microsoft SQL Server database provider for Entity Framework 
-        ///         to an <see cref="IServiceCollection" />. You use this method when using dependency injection 
-        ///         in your application, such as with ASP.NET. For more information on setting up dependency 
+        ///         Adds the services required by the Microsoft SQL Server database provider for Entity Framework
+        ///         to an <see cref="IServiceCollection" />. You use this method when using dependency injection
+        ///         in your application, such as with ASP.NET. For more information on setting up dependency
         ///         injection, see http://go.microsoft.com/fwlink/?LinkId=526890.
         ///     </para>
         ///     <para>
@@ -49,7 +50,7 @@ namespace Microsoft.Extensions.DependencyInjection
         ///         }
         ///     </code>
         /// </example>
-        /// <param name="serviceCollection"> The <see cref="IServiceCollection" /> to add services to. </param>
+        /// <param name="builder"> The <see cref="IServiceCollection" /> to add services to. </param>
         /// <returns>
         ///     A builder that allows further Entity Framework specific setup of the <see cref="IServiceCollection" />.
         /// </returns>
@@ -65,7 +66,7 @@ namespace Microsoft.Extensions.DependencyInjection
             service.TryAdd(new ServiceCollection()
                 .AddSingleton<ISqlServerValueGeneratorCache, SqlServerValueGeneratorCache>()
                 .AddSingleton<SqlServerTypeMapper>()
-                .AddSingleton<SqlServerSqlGenerator>()
+                .AddSingleton<SqlServerSqlGenerationHelper>()
                 .AddSingleton<SqlServerModelSource>()
                 .AddSingleton<SqlServerAnnotationProvider>()
                 .AddSingleton<SqlServerMigrationsAnnotationProvider>()

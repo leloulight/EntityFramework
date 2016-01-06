@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -31,7 +31,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -63,7 +63,7 @@
       <Link>Extensions\SharedTypeExtensions.cs</Link>
     </Compile>
     <Compile Include="Infrastructure\Internal\SqliteModelSource.cs" />
-    <Compile Include="Infrastructure\Internal\SqliteModelValidator.cs" />
+    <Compile Include="Internal\SqliteModelValidator.cs" />
     <Compile Include="Infrastructure\Internal\SqliteOptionsExtension.cs" />
     <Compile Include="Metadata\Builders\SqliteEntityTypeBuilderExtensions.cs" />
     <Compile Include="Metadata\Builders\SqliteReferenceCollectionBuilderExtensions.cs" />
@@ -90,12 +90,12 @@
     <Compile Include="Query\ExpressionTranslators\Internal\SqliteCompositeMemberTranslator.cs" />
     <Compile Include="Storage\Internal\SqliteDatabaseCreator.cs" />
     <Compile Include="Storage\Internal\SqliteRelationalConnection.cs" />
-    <Compile Include="Metadata\Conventions\Internal\SqliteConventionSetBuilder.cs" />
+    <Compile Include="Metadata\Conventions\SqliteConventionSetBuilder.cs" />
     <Compile Include="Infrastructure\SqliteDbContextOptionsBuilder.cs" />
     <Compile Include="SqliteDbContextOptionsBuilderExtensions.cs" />
     <Compile Include="Infrastructure\SqliteEntityFrameworkServicesBuilderExtensions.cs" />
     <Compile Include="Query\ExpressionTranslators\Internal\SqliteCompositeMethodCallTranslator.cs" />
-    <Compile Include="Storage\Internal\SqliteSqlGenerator.cs" />
+    <Compile Include="Storage\Internal\SqliteSqlGenerationHelper.cs" />
     <Compile Include="Storage\Internal\SqliteTypeMapper.cs" />
     <Compile Include="Update\Internal\SqliteModificationCommandBatchFactory.cs" />
     <Compile Include="Update\Internal\SqliteUpdateSqlGenerator.cs" />

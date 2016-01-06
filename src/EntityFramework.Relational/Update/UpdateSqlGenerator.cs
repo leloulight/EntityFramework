@@ -12,16 +12,16 @@ namespace Microsoft.Data.Entity.Update
 {
     public abstract class UpdateSqlGenerator : IUpdateSqlGenerator
     {
-        protected UpdateSqlGenerator([NotNull] ISqlGenerator sqlGenerator)
+        protected UpdateSqlGenerator([NotNull] ISqlGenerationHelper sqlGenerationHelper)
         {
-            Check.NotNull(sqlGenerator, nameof(sqlGenerator));
+            Check.NotNull(sqlGenerationHelper, nameof(sqlGenerationHelper));
 
-            SqlGenerator = sqlGenerator;
+            SqlGenerationHelper = sqlGenerationHelper;
         }
 
-        protected virtual ISqlGenerator SqlGenerator { get; }
+        protected virtual ISqlGenerationHelper SqlGenerationHelper { get; }
 
-        public virtual void AppendInsertOperation(StringBuilder commandStringBuilder, ModificationCommand command)
+        public virtual ResultSetMapping AppendInsertOperation(StringBuilder commandStringBuilder, ModificationCommand command, int commandPosition)
         {
             Check.NotNull(commandStringBuilder, nameof(commandStringBuilder));
             Check.NotNull(command, nameof(command));
@@ -39,15 +39,13 @@ namespace Microsoft.Data.Entity.Update
             {
                 var keyOperations = operations.Where(o => o.IsKey).ToArray();
 
-                AppendSelectAffectedCommand(commandStringBuilder, name, schema, readOperations, keyOperations);
+                return AppendSelectAffectedCommand(commandStringBuilder, name, schema, readOperations, keyOperations, commandPosition);
             }
-            else
-            {
-                AppendSelectAffectedCountCommand(commandStringBuilder, name, schema);
-            }
+
+            return ResultSetMapping.NoResultSet;
         }
 
-        public virtual void AppendUpdateOperation(StringBuilder commandStringBuilder, ModificationCommand command)
+        public virtual ResultSetMapping AppendUpdateOperation(StringBuilder commandStringBuilder, ModificationCommand command, int commandPosition)
         {
             Check.NotNull(commandStringBuilder, nameof(commandStringBuilder));
             Check.NotNull(command, nameof(command));
@@ -66,15 +64,12 @@ namespace Microsoft.Data.Entity.Update
             {
                 var keyOperations = operations.Where(o => o.IsKey).ToArray();
 
-                AppendSelectAffectedCommand(commandStringBuilder, name, schema, readOperations, keyOperations);
+                return AppendSelectAffectedCommand(commandStringBuilder, name, schema, readOperations, keyOperations, commandPosition);
             }
-            else
-            {
-                AppendSelectAffectedCountCommand(commandStringBuilder, name, schema);
-            }
+            return AppendSelectAffectedCountCommand(commandStringBuilder, name, schema, commandPosition);
         }
 
-        public virtual void AppendDeleteOperation(StringBuilder commandStringBuilder, ModificationCommand command)
+        public virtual ResultSetMapping AppendDeleteOperation(StringBuilder commandStringBuilder, ModificationCommand command, int commandPosition)
         {
             Check.NotNull(commandStringBuilder, nameof(commandStringBuilder));
             Check.NotNull(command, nameof(command));
@@ -85,7 +80,7 @@ namespace Microsoft.Data.Entity.Update
 
             AppendDeleteCommand(commandStringBuilder, name, schema, conditionOperations);
 
-            AppendSelectAffectedCountCommand(commandStringBuilder, name, schema);
+            return AppendSelectAffectedCountCommand(commandStringBuilder, name, schema, commandPosition);
         }
 
         protected virtual void AppendInsertCommand(
@@ -101,7 +96,7 @@ namespace Microsoft.Data.Entity.Update
             AppendInsertCommandHeader(commandStringBuilder, name, schema, writeOperations);
             AppendValuesHeader(commandStringBuilder, writeOperations);
             AppendValues(commandStringBuilder, writeOperations);
-            commandStringBuilder.Append(SqlGenerator.BatchCommandSeparator).AppendLine();
+            commandStringBuilder.Append(SqlGenerationHelper.StatementTerminator).AppendLine();
         }
 
         protected virtual void AppendUpdateCommand(
@@ -118,7 +113,7 @@ namespace Microsoft.Data.Entity.Update
 
             AppendUpdateCommandHeader(commandStringBuilder, name, schema, writeOperations);
             AppendWhereClause(commandStringBuilder, conditionOperations);
-            commandStringBuilder.Append(SqlGenerator.BatchCommandSeparator).AppendLine();
+            commandStringBuilder.Append(SqlGenerationHelper.StatementTerminator).AppendLine();
         }
 
         protected virtual void AppendDeleteCommand(
@@ -133,22 +128,23 @@ namespace Microsoft.Data.Entity.Update
 
             AppendDeleteCommandHeader(commandStringBuilder, name, schema);
             AppendWhereClause(commandStringBuilder, conditionOperations);
-            commandStringBuilder.Append(SqlGenerator.BatchCommandSeparator).AppendLine();
+            commandStringBuilder.Append(SqlGenerationHelper.StatementTerminator).AppendLine();
         }
 
-        protected virtual void AppendSelectAffectedCountCommand(
+        protected virtual ResultSetMapping AppendSelectAffectedCountCommand(
             [NotNull] StringBuilder commandStringBuilder,
             [NotNull] string name,
-            [CanBeNull] string schema)
-        {
-        }
+            [CanBeNull] string schema,
+            int commandPosition)
+            => ResultSetMapping.NoResultSet;
 
-        protected virtual void AppendSelectAffectedCommand(
+        protected virtual ResultSetMapping AppendSelectAffectedCommand(
             [NotNull] StringBuilder commandStringBuilder,
             [NotNull] string name,
             [CanBeNull] string schema,
             [NotNull] IReadOnlyList<ColumnModification> readOperations,
-            [NotNull] IReadOnlyList<ColumnModification> conditionOperations)
+            [NotNull] IReadOnlyList<ColumnModification> conditionOperations,
+            int commandPosition)
         {
             Check.NotNull(commandStringBuilder, nameof(commandStringBuilder));
             Check.NotEmpty(name, nameof(name));
@@ -159,7 +155,9 @@ namespace Microsoft.Data.Entity.Update
             AppendFromClause(commandStringBuilder, name, schema);
             // TODO: there is no notion of operator - currently all the where conditions check equality
             AppendWhereAffectedClause(commandStringBuilder, conditionOperations);
-            commandStringBuilder.Append(SqlGenerator.BatchCommandSeparator).AppendLine();
+            commandStringBuilder.Append(SqlGenerationHelper.StatementTerminator).AppendLine();
+
+            return ResultSetMapping.LastInResultSet;
         }
 
         protected virtual void AppendInsertCommandHeader(
@@ -174,13 +172,13 @@ namespace Microsoft.Data.Entity.Update
 
             commandStringBuilder
                 .Append("INSERT INTO ")
-                .Append(SqlGenerator.DelimitIdentifier(name, schema));
+                .Append(SqlGenerationHelper.DelimitIdentifier(name, schema));
 
             if (operations.Count > 0)
             {
                 commandStringBuilder
                     .Append(" (")
-                    .AppendJoin(operations.Select(o => SqlGenerator.DelimitIdentifier(o.ColumnName)))
+                    .AppendJoin(operations.Select(o => SqlGenerationHelper.DelimitIdentifier(o.ColumnName)))
                     .Append(")");
             }
         }
@@ -195,7 +193,7 @@ namespace Microsoft.Data.Entity.Update
 
             commandStringBuilder
                 .Append("DELETE FROM ")
-                .Append(SqlGenerator.DelimitIdentifier(name, schema));
+                .Append(SqlGenerationHelper.DelimitIdentifier(name, schema));
         }
 
         protected virtual void AppendUpdateCommandHeader(
@@ -210,14 +208,14 @@ namespace Microsoft.Data.Entity.Update
 
             commandStringBuilder
                 .Append("UPDATE ")
-                .Append(SqlGenerator.DelimitIdentifier(name, schema))
+                .Append(SqlGenerationHelper.DelimitIdentifier(name, schema))
                 .Append(" SET ")
                 .AppendJoin(
                     operations,
                     (sb, v) => sb
-                        .Append(SqlGenerator.DelimitIdentifier(v.ColumnName))
+                        .Append(SqlGenerationHelper.DelimitIdentifier(v.ColumnName))
                         .Append(" = ")
-                        .Append(SqlGenerator.GenerateParameterName(v.ParameterName)),
+                        .Append(SqlGenerationHelper.GenerateParameterName(v.ParameterName)),
                     ", ");
         }
 
@@ -230,7 +228,7 @@ namespace Microsoft.Data.Entity.Update
 
             commandStringBuilder
                 .Append("SELECT ")
-                .AppendJoin(operations.Select(c => SqlGenerator.DelimitIdentifier(c.ColumnName)));
+                .AppendJoin(operations.Select(c => SqlGenerationHelper.DelimitIdentifier(c.ColumnName)));
         }
 
         protected virtual void AppendFromClause(
@@ -244,7 +242,7 @@ namespace Microsoft.Data.Entity.Update
             commandStringBuilder
                 .AppendLine()
                 .Append("FROM ")
-                .Append(SqlGenerator.DelimitIdentifier(name, schema));
+                .Append(SqlGenerationHelper.DelimitIdentifier(name, schema));
         }
 
         protected virtual void AppendValuesHeader(
@@ -270,7 +268,7 @@ namespace Microsoft.Data.Entity.Update
                 commandStringBuilder
                     .Append("(")
                     .AppendJoin(operations.Select(
-                        o => SqlGenerator.GenerateParameterName(o.ParameterName)))
+                        o => o.IsWrite ? SqlGenerationHelper.GenerateParameterName(o.ParameterName) : "DEFAULT"))
                     .Append(")");
             }
         }
@@ -336,10 +334,10 @@ namespace Microsoft.Data.Entity.Update
             Check.NotNull(columnModification, nameof(columnModification));
 
             commandStringBuilder
-                .Append(SqlGenerator.DelimitIdentifier(columnModification.ColumnName))
+                .Append(SqlGenerationHelper.DelimitIdentifier(columnModification.ColumnName))
                 .Append(" = ")
                 .Append(
-                    SqlGenerator.GenerateParameterName(
+                    SqlGenerationHelper.GenerateParameterName(
                         useOriginalValue
                             ? columnModification.OriginalParameterName
                             : columnModification.ParameterName));
@@ -354,6 +352,6 @@ namespace Microsoft.Data.Entity.Update
         }
 
         public virtual string GenerateNextSequenceValueOperation(string name, string schema)
-            => "SELECT NEXT VALUE FOR " + SqlGenerator.DelimitIdentifier(Check.NotNull(name, nameof(name)), schema);
+            => "SELECT NEXT VALUE FOR " + SqlGenerationHelper.DelimitIdentifier(Check.NotNull(name, nameof(name)), schema);
     }
 }

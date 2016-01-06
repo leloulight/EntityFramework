@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
-using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Storage;
@@ -65,19 +64,18 @@ namespace Microsoft.Data.Entity.Update
         {
             Check.NotNull(entry, nameof(entry));
 
-            if (entry.EntityState != EntityState.Added
-                && entry.EntityState != EntityState.Modified
-                && entry.EntityState != EntityState.Deleted)
+            if ((entry.EntityState != EntityState.Added)
+                && (entry.EntityState != EntityState.Modified)
+                && (entry.EntityState != EntityState.Deleted))
             {
                 throw new NotSupportedException(RelationalStrings.ModificationFunctionInvalidEntityState(entry.EntityState));
             }
 
             var firstEntry = _entries.FirstOrDefault();
-            if (firstEntry != null
-                && firstEntry.EntityState != entry.EntityState)
+            if ((firstEntry != null)
+                && (firstEntry.EntityState != entry.EntityState))
             {
-                // TODO: Proper message
-                throw new InvalidOperationException("Two entities cannot make conflicting updates to the same row.");
+                throw new InvalidOperationException(RelationalStrings.ConflictingRowUpdates);
 
                 // TODO: Check for any other conflicts between the two entries
             }

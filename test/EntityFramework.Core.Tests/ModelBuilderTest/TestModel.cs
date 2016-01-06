@@ -8,6 +8,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 
 // ReSharper disable once CheckNamespace
+
 namespace Microsoft.Data.Entity.Tests
 {
     public abstract partial class ModelBuilderTest
@@ -127,6 +128,8 @@ namespace Microsoft.Data.Entity.Tests
 
         private class OrderDetails
         {
+            public static readonly PropertyInfo OrderIdProperty = typeof(OrderDetails).GetProperty("OrderId");
+
             public int Id { get; set; }
 
             public int OrderId { get; set; }
@@ -214,9 +217,18 @@ namespace Microsoft.Data.Entity.Tests
             public Book Book { get; set; }
 
             public int BookId { get; set; }
+
+            public SpecialBookLabel SpecialBookLabel { get; set; }
+
+            public AnotherBookLabel AnotherBookLabel { get; set; }
         }
 
         private class SpecialBookLabel : BookLabel
+        {
+            public ICollection<BookLabel> BookLabels { get; set; }
+        }
+
+        private class AnotherBookLabel : BookLabel
         {
         }
 
@@ -301,6 +313,7 @@ namespace Microsoft.Data.Entity.Tests
             [ForeignKey("CId")]
             public C C { get; set; }
         }
+
         private class EntityWithoutId
         {
             public string Name { get; set; }
@@ -323,5 +336,98 @@ namespace Microsoft.Data.Entity.Tests
             public PrincipalEntity Nav { get; set; }
         }
 
+        protected class Alpha
+        {
+            public int Id { get; set; }
+
+            public Delta NavDelta { get; set; }
+            public IList<Epsilon> Epsilons { get; set; }
+            public IList<Eta> Etas { get; set; }
+            [ForeignKey("Id")]
+            public IList<Theta> Thetas { get; set; }
+
+        }
+
+        protected class Beta
+        {
+            public int Id { get; set; }
+
+            public Alpha FirstNav { get; set; }
+            public Alpha SecondNav { get; set; }
+        }
+
+        protected class Gamma
+        {
+            public int Id { get; set; }
+
+            public List<Alpha> Alphas { get; set; }
+        }
+
+        protected class Delta
+        {
+            [ForeignKey("Alpha")]
+            public int Id { get; set; }
+
+            public Alpha Alpha { get; set; }
+        }
+
+        protected class Epsilon
+        {
+            [ForeignKey("Alpha")]
+            public int Id { get; set; }
+
+            public Alpha Alpha { get; set; }
+        }
+
+        protected class Eta
+        {
+            public int Id { get; set; }
+
+            [ForeignKey("Id")]
+            public Alpha Alpha { get; set; }
+        }
+
+        protected class Zeta
+        {
+            public int Id { get; set; }
+
+            public int CommonFkProperty { get; set; }
+
+            [ForeignKey("CommonFkProperty")]
+            public Alpha AlphaOne { get; set; }
+            [ForeignKey("CommonFkProperty")]
+            public Alpha AlphaTwo { get; set; }
+        }
+
+        protected class Theta
+        {
+            public int Id { get; set; }
+
+            public Alpha Alpha { get; set; }
+        }
+
+        protected interface IEntityBase
+        {
+            int Target { get; }
+        }
+
+        protected class EntityBase : IEntityBase
+        {
+            public static readonly PropertyInfo TargetProperty = typeof(EntityBase).GetProperty("Target");
+
+            public int Target { get; set; }
+
+            int IEntityBase.Target => Target;
+        }
+
+        protected class EntityAnnotationBase : IEntityBase
+        {
+            public static readonly PropertyInfo TargetProperty = typeof(EntityAnnotationBase).GetProperty("Target");
+
+            public int Target { get; set; }
+
+            [NotMapped]
+            int IEntityBase.Target => Target;
+        }
     }
 }

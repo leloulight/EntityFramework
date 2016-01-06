@@ -15,8 +15,8 @@ namespace System.Reflection
 
         public static bool IsCandidateProperty(this PropertyInfo propertyInfo)
             => !propertyInfo.IsStatic()
-                && propertyInfo.GetIndexParameters().Length == 0
-                && propertyInfo.CanRead;
+               && (propertyInfo.GetIndexParameters().Length == 0)
+               && propertyInfo.CanRead;
 
         public static Type FindCandidateNavigationPropertyType(this PropertyInfo propertyInfo, Func<Type, bool> isPrimitiveProperty)
         {
@@ -31,7 +31,8 @@ namespace System.Reflection
 
             if (isPrimitiveProperty(targetType)
                 || targetType.GetTypeInfo().IsInterface
-                || targetType.GetTypeInfo().IsValueType)
+                || targetType.GetTypeInfo().IsValueType
+                || targetType == typeof(object))
             {
                 return null;
             }

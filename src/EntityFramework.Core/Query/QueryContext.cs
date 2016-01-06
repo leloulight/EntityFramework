@@ -5,7 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Query.Internal;
+using Microsoft.Data.Entity.Storage;
 using Microsoft.Data.Entity.Utilities;
 
 namespace Microsoft.Data.Entity.Query
@@ -14,21 +16,68 @@ namespace Microsoft.Data.Entity.Query
     {
         private readonly Func<IQueryBuffer> _queryBufferFactory;
 
-        private IDictionary<string, object> _parameterValues;
+        private readonly IDictionary<string, object> _parameterValues = new Dictionary<string, object>();
+
         private IQueryBuffer _queryBuffer;
 
-        public QueryContext([NotNull] Func<IQueryBuffer> queryBufferFactory)
+        public QueryContext(
+            [NotNull] Func<IQueryBuffer> queryBufferFactory,
+            [NotNull] IStateManager stateManager,
+            [NotNull] IConcurrencyDetector concurrencyDetector)
         {
             Check.NotNull(queryBufferFactory, nameof(queryBufferFactory));
+            Check.NotNull(stateManager, nameof(stateManager));
+            Check.NotNull(concurrencyDetector, nameof(concurrencyDetector));
 
             _queryBufferFactory = queryBufferFactory;
+
+            StateManager = stateManager;
+            ConcurrencyDetector = concurrencyDetector;
         }
 
-        public virtual IQueryBuffer QueryBuffer => _queryBuffer ?? (_queryBuffer = _queryBufferFactory());
+        public virtual IQueryBuffer QueryBuffer
+            => _queryBuffer ?? (_queryBuffer = _queryBufferFactory());
+
+        public virtual IStateManager StateManager { get; }
+
+        public virtual IConcurrencyDetector ConcurrencyDetector { get; }
 
         public virtual CancellationToken CancellationToken { get; set; }
 
-        public virtual IDictionary<string, object> ParameterValues
-            => _parameterValues ?? (_parameterValues = new Dictionary<string, object>());
+        public virtual IReadOnlyDictionary<string, object> ParameterValues
+            => (IReadOnlyDictionary<string, object>)_parameterValues;
+
+        public virtual void AddParameter([NotNull] string name, [CanBeNull] object value)
+        {
+            Check.NotEmpty(name, nameof(name));
+
+            _parameterValues.Add(name, value);
+        }
+
+        public virtual object RemoveParameter([NotNull] string name)
+        {
+            Check.NotEmpty(name, nameof(name));
+
+            var value = _parameterValues[name];
+
+            _parameterValues.Remove(name);
+
+            return value;
+        }
+
+        public virtual void BeginTrackingQuery() => StateManager.BeginTrackingQuery();
+
+        public virtual void StartTracking(
+            [NotNull] object entity, [NotNull] EntityTrackingInfo entityTrackingInfo)
+        {
+            if (_queryBuffer != null)
+            {
+                _queryBuffer.StartTracking(entity, entityTrackingInfo);
+            }
+            else
+            {
+                entityTrackingInfo.StartTracking(StateManager, entity, ValueBuffer.Empty);
+            }
+        }
     }
 }

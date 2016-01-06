@@ -24,8 +24,13 @@
     "net451": {},
     "dotnet5.4": {
       "dependencies": {
+<<<<<<< HEAD
         "System.IO.FileSystem": "4.0.1-beta-23516",
         "Microsoft.CSharp": "4.0.1-beta-23516"
+=======
+        "System.IO.FileSystem": "4.0.1-*",
+        "Microsoft.CSharp": "4.0.1-*"
+>>>>>>> refs/remotes/aspnet/dev
       }
     },
     "netcore50": {

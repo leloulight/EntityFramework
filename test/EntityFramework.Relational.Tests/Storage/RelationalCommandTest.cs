@@ -7,6 +7,7 @@ using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Storage.Internal;
@@ -63,7 +64,7 @@ namespace Microsoft.Data.Entity.Storage
 
             var command = fakeConnection.DbConnections[0].DbCommands[0];
 
-            Assert.Same(relationalTransaction.GetInfrastructure(), command.Transaction);
+            Assert.Same(relationalTransaction.GetDbTransaction(), command.Transaction);
         }
 
         [Fact]
@@ -104,9 +105,9 @@ namespace Microsoft.Data.Entity.Storage
                 "CommandText",
                 new[]
                 {
-                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false),
-                    new RelationalParameter("SecondParameter", 18L,  new RelationalTypeMapping("long", typeof(long), DbType.Int64), true),
-                    new RelationalParameter("ThirdParameter", null,  RelationalTypeMapping.NullMapping, null)
+                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false, null),
+                    new RelationalParameter("SecondParameter", 18L,  new RelationalTypeMapping("long", typeof(long), DbType.Int64), true, null),
+                    new RelationalParameter("ThirdParameter", null,  RelationalTypeMapping.NullMapping, null, null)
                 });
 
             relationalCommand.ExecuteNonQuery(fakeConnection);
@@ -169,7 +170,9 @@ namespace Microsoft.Data.Entity.Storage
                 "ExecuteNonQuery Command",
                 new RelationalParameter[0]);
 
-            relationalCommand.ExecuteNonQuery(fakeConnection, manageConnection: manageConnection);
+            var result = relationalCommand.ExecuteNonQuery(fakeConnection, manageConnection: manageConnection);
+
+            Assert.Equal(1, result);
 
             var expectedCount = manageConnection ? 1 : 0;
             Assert.Equal(expectedCount, fakeDbConnection.OpenCount);
@@ -213,7 +216,9 @@ namespace Microsoft.Data.Entity.Storage
                 "ExecuteNonQuery Command",
                 new RelationalParameter[0]);
 
-            await relationalCommand.ExecuteNonQueryAsync(fakeConnection, manageConnection: manageConnection);
+            var result = await relationalCommand.ExecuteNonQueryAsync(fakeConnection, manageConnection: manageConnection);
+
+            Assert.Equal(1, result);
 
             var expectedCount = manageConnection ? 1 : 0;
             Assert.Equal(expectedCount, fakeDbConnection.OpenCount);
@@ -374,7 +379,8 @@ namespace Microsoft.Data.Entity.Storage
             Assert.Equal(expectedCount, fakeDbConnection.CloseCount);
         }
 
-        [Theory]
+        [ConditionalTheory]
+        [MonoVersionCondition(Min = "4.2.0", SkipReason = "ExecuteReaderAsync is not implemented in Mono < 4.2.0")]
         [InlineData(true)]
         [InlineData(false)]
         public async Task Can_ExecuteReaderAsync(bool manageConnection)
@@ -434,32 +440,32 @@ namespace Microsoft.Data.Entity.Storage
                 {
                     {
                         new Action<RelationalCommand, bool, IRelationalConnection>( (command, manage, connection) => command.ExecuteNonQuery(connection, manageConnection: manage)),
-                        RelationalDiagnostics.ExecuteMethod.ExecuteNonQuery,
+                        "ExecuteNonQuery",
                         false
                     },
                     {
                         new Action<RelationalCommand, bool, IRelationalConnection>( (command, manage, connection) => command.ExecuteScalar(connection, manageConnection: manage)),
-                        RelationalDiagnostics.ExecuteMethod.ExecuteScalar,
+                        "ExecuteScalar",
                         false
                     },
                     {
                         new Action<RelationalCommand, bool, IRelationalConnection>( (command, manage, connection) => command.ExecuteReader(connection, manageConnection: manage)),
-                        RelationalDiagnostics.ExecuteMethod.ExecuteReader,
+                        "ExecuteReader",
                         false
                     },
                     {
                         new Func<RelationalCommand, bool, IRelationalConnection, Task>( (command, manage, connection) => command.ExecuteNonQueryAsync(connection, manageConnection: manage)),
-                        RelationalDiagnostics.ExecuteMethod.ExecuteNonQuery,
+                        "ExecuteNonQuery",
                         true
                     },
                     {
                         new Func<RelationalCommand, bool, IRelationalConnection, Task>( (command, manage, connection) => command.ExecuteScalarAsync(connection, manageConnection: manage)),
-                        RelationalDiagnostics.ExecuteMethod.ExecuteScalar,
+                        "ExecuteScalar",
                         true
                     },
                     {
                         new Func<RelationalCommand, bool, IRelationalConnection, Task>( (command, manage, connection) => command.ExecuteReaderAsync(connection, manageConnection: manage)),
-                        RelationalDiagnostics.ExecuteMethod.ExecuteReader,
+                        "ExecuteReader",
                         true
                     }
                 };
@@ -632,7 +638,7 @@ namespace Microsoft.Data.Entity.Storage
                 "Command Text",
                 new[]
                 {
-                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false)
+                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false, null)
                 });
 
             if (async)
@@ -678,7 +684,7 @@ Command Text",
                 "Command Text",
                 new[]
                 {
-                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false)
+                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false, null)
                 });
 
             if (async)
@@ -692,64 +698,11 @@ Command Text",
 
             Assert.Equal(2, log.Count);
             Assert.Equal(LogLevel.Warning, log[0].Item1);
-            Assert.Equal(
-@"SQL parameter value logging is enabled. As SQL parameter values may include sensitive application data, this mode should only be enabled during development.",
-                log[0].Item2);
+            Assert.Equal(CoreStrings.SensitiveDataLoggingEnabled, log[0].Item2);
 
             Assert.Equal(LogLevel.Information, log[1].Item1);
             Assert.EndsWith(
                 @"ms) [Parameters=[FirstParameter='17'], CommandType='0', CommandTimeout='30']
-Command Text",
-                log[1].Item2);
-        }
-
-        [Theory]
-        [MemberData(nameof(CommandActions))]
-        public async Task Logs_commands_parameter_values_and_warnings(
-            Delegate commandDelegate,
-            string diagnosticName,
-            bool async)
-        {
-            var optionsExtension = new FakeRelationalOptionsExtension
-            {
-                ConnectionString = ConnectionString
-            };
-
-            var options = CreateOptions(optionsExtension, logParameters: true);
-
-            var fakeConnection = new FakeRelationalConnection(options);
-
-            var log = new List<Tuple<LogLevel, string>>();
-
-            var relationalCommand = new RelationalCommand(
-                new SensitiveDataLogger<RelationalCommand>(
-                    new ListLogger<RelationalCommand>(log),
-                    options),
-                new DiagnosticListener("Fake"),
-                "Command Text",
-                new[]
-                {
-                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false)
-                });
-
-            if (async)
-            {
-                await ((Func<RelationalCommand, bool, IRelationalConnection, Task>)commandDelegate)(relationalCommand, true, fakeConnection);
-            }
-            else
-            {
-                ((Action<RelationalCommand, bool, IRelationalConnection>)commandDelegate)(relationalCommand, true, fakeConnection);
-            }
-
-            Assert.Equal(2, log.Count);
-            Assert.Equal(LogLevel.Warning, log[0].Item1);
-            Assert.Equal(
-@"SQL parameter value logging is enabled. As SQL parameter values may include sensitive application data, this mode should only be enabled during development.",
-                log[0].Item2);
-
-            Assert.Equal(LogLevel.Information, log[1].Item1);
-            Assert.EndsWith(
-                @"[Parameters=[FirstParameter='17'], CommandType='0', CommandTimeout='30']
 Command Text",
                 log[1].Item2);
         }
@@ -775,7 +728,7 @@ Command Text",
                 "Command Text",
                 new[]
                 {
-                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false)
+                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false, null)
                 });
 
             if (async)
@@ -791,8 +744,8 @@ Command Text",
             Assert.Equal(RelationalDiagnostics.BeforeExecuteCommand, diagnostic[0].Item1);
             Assert.Equal(RelationalDiagnostics.AfterExecuteCommand, diagnostic[1].Item1);
 
-            dynamic beforeData = diagnostic[0].Item2;
-            dynamic afterData = diagnostic[1].Item2;
+            var beforeData = (RelationalDiagnosticSourceMessage)diagnostic[0].Item2;
+            var afterData = (RelationalDiagnosticSourceMessage)diagnostic[1].Item2;
 
             Assert.Equal(fakeConnection.DbConnections[0].DbCommands[0], beforeData.Command);
             Assert.Equal(fakeConnection.DbConnections[0].DbCommands[0], afterData.Command);
@@ -839,7 +792,7 @@ Command Text",
                 "Command Text",
                 new[]
                 {
-                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false)
+                    new RelationalParameter("FirstParameter", 17, new RelationalTypeMapping("int", typeof(int), DbType.Int32), false, null)
                 });
 
             if (async)
@@ -858,8 +811,8 @@ Command Text",
             Assert.Equal(RelationalDiagnostics.BeforeExecuteCommand, diagnostic[0].Item1);
             Assert.Equal(RelationalDiagnostics.CommandExecutionError, diagnostic[1].Item1);
 
-            dynamic beforeData = diagnostic[0].Item2;
-            dynamic afterData = diagnostic[1].Item2;
+            var beforeData = (RelationalDiagnosticSourceMessage)diagnostic[0].Item2;
+            var afterData = (RelationalDiagnosticSourceMessage)diagnostic[1].Item2;
 
             Assert.Equal(fakeDbConnection.DbCommands[0], beforeData.Command);
             Assert.Equal(fakeDbConnection.DbCommands[0], afterData.Command);

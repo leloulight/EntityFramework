@@ -4,11 +4,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Migrations;
 
 namespace Microsoft.Data.Entity.Scaffolding.Metadata
 {
-    public class ForeignKeyModel
+    public class ForeignKeyModel : Annotatable
     {
         [CanBeNull]
         public virtual TableModel Table { get; [param: CanBeNull] set; }
@@ -16,8 +17,7 @@ namespace Microsoft.Data.Entity.Scaffolding.Metadata
         [CanBeNull]
         public virtual TableModel PrincipalTable { get; [param: CanBeNull] set; }
 
-        public virtual IList<ColumnModel> Columns { get; [param: NotNull] set; } = new List<ColumnModel>();
-        public virtual IList<ColumnModel> PrincipalColumns { get; [param: NotNull] set; } = new List<ColumnModel>();
+        public virtual ICollection<ForeignKeyColumnModel> Columns { get; } = new List<ForeignKeyColumnModel>();
 
         [NotNull]
         public virtual string Name { get; [param: CanBeNull] set; }
@@ -28,6 +28,6 @@ namespace Microsoft.Data.Entity.Scaffolding.Metadata
         //public virtual ReferentialAction OnUpdate { get; [param: NotNull] set; }
 
         public virtual string DisplayName
-            => Table?.DisplayName + "(" + string.Join(",", Columns.Select(f => f.Name)) + ")";
+            => Table?.DisplayName + "(" + string.Join(",", Columns.OrderBy(f => f.Ordinal).Select(f => f.Column.Name)) + ")";
     }
 }

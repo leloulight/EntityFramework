@@ -3,6 +3,7 @@
 
 using System;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Storage.Internal;
 using Microsoft.Data.Entity.Utilities;
 
@@ -10,8 +11,15 @@ namespace Microsoft.Data.Entity.Query.Internal
 {
     public class InMemoryQueryContext : QueryContext
     {
-        public InMemoryQueryContext([NotNull] Func<IQueryBuffer> queryBufferFactory, [NotNull] IInMemoryStore store)
-            : base(Check.NotNull(queryBufferFactory, nameof(queryBufferFactory)))
+        public InMemoryQueryContext(
+            [NotNull] Func<IQueryBuffer> queryBufferFactory,
+            [NotNull] IInMemoryStore store,
+            [NotNull] IStateManager stateManager,
+            [NotNull] IConcurrencyDetector concurrencyDetector)
+            : base(
+                Check.NotNull(queryBufferFactory, nameof(queryBufferFactory)),
+                Check.NotNull(stateManager, nameof(stateManager)),
+                Check.NotNull(concurrencyDetector, nameof(concurrencyDetector)))
         {
             Store = store;
         }

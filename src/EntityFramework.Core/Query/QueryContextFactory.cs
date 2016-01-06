@@ -10,22 +10,23 @@ namespace Microsoft.Data.Entity.Query
 {
     public abstract class QueryContextFactory : IQueryContextFactory
     {
-        private readonly IStateManager _stateManager;
-        private readonly IKeyValueFactorySource _keyValueFactorySource;
-
         protected QueryContextFactory(
             [NotNull] IStateManager stateManager,
-            [NotNull] IKeyValueFactorySource keyValueFactorySource)
+            [NotNull] IConcurrencyDetector concurrencyDetector)
         {
             Check.NotNull(stateManager, nameof(stateManager));
-            Check.NotNull(keyValueFactorySource, nameof(keyValueFactorySource));
+            Check.NotNull(concurrencyDetector, nameof(concurrencyDetector));
 
-            _stateManager = stateManager;
-            _keyValueFactorySource = keyValueFactorySource;
+            StateManager = stateManager;
+            ConcurrencyDetector = concurrencyDetector;
         }
 
         protected virtual IQueryBuffer CreateQueryBuffer()
-            => new QueryBuffer(_stateManager, _keyValueFactorySource);
+            => new QueryBuffer(StateManager);
+
+        protected virtual IStateManager StateManager { get; }
+
+        protected virtual IConcurrencyDetector ConcurrencyDetector { get; }
 
         public abstract QueryContext Create();
     }

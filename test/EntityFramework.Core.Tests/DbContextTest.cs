@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities;
 using Microsoft.Data.Entity.ChangeTracking;
 using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Infrastructure;
@@ -217,18 +218,29 @@ namespace Microsoft.Data.Entity.Tests
             public IEnumerable<InternalEntityEntry> InternalEntries { get; set; }
             public bool SaveChangesCalled { get; set; }
             public bool SaveChangesAsyncCalled { get; set; }
+            public virtual bool? SingleQueryMode { get; set; }
 
-            public void UpdateIdentityMap(InternalEntityEntry entry, IKeyValue oldKeyValue, IKey principalKey)
+            public void UpdateIdentityMap(InternalEntityEntry entry, IKey principalKey)
             {
                 throw new NotImplementedException();
             }
 
-            public void UpdateDependentMap(InternalEntityEntry entry, IKeyValue oldKeyValue, IForeignKey foreignKey)
+            public void UpdateDependentMap(InternalEntityEntry entry, IForeignKey foreignKey)
             {
                 throw new NotImplementedException();
             }
 
             public IEnumerable<InternalEntityEntry> GetDependents(InternalEntityEntry principalEntry, IForeignKey foreignKey)
+            {
+                throw new NotImplementedException();
+            }
+
+            public IEnumerable<InternalEntityEntry> GetDependentsUsingRelationshipSnapshot(InternalEntityEntry principalEntry, IForeignKey foreignKey)
+            {
+                throw new NotImplementedException();
+            }
+
+            public IEnumerable<InternalEntityEntry> GetDependentsFromNavigation(InternalEntityEntry principalEntry, IForeignKey foreignKey)
             {
                 throw new NotImplementedException();
             }
@@ -250,22 +262,25 @@ namespace Microsoft.Data.Entity.Tests
                 throw new NotImplementedException();
             }
 
-            public InternalEntityEntry CreateNewEntry(IEntityType entityType)
-            {
-                throw new NotImplementedException();
-            }
-
             public InternalEntityEntry GetOrCreateEntry(object entity)
             {
                 throw new NotImplementedException();
             }
 
-            public InternalEntityEntry StartTracking(IEntityType entityType, IKeyValue keyValue, object entity, ValueBuffer valueBuffer)
+            public InternalEntityEntry StartTrackingFromQuery(
+                IEntityType entityType,
+                object entity,
+                ValueBuffer valueBuffer)
             {
                 throw new NotImplementedException();
             }
 
-            public InternalEntityEntry TryGetEntry(IKeyValue keyValueValue)
+            public void BeginTrackingQuery()
+            {
+                throw new NotImplementedException();
+            }
+
+            public InternalEntityEntry TryGetEntry(IKey key, ValueBuffer valueBuffer, bool throwOnNullKey)
             {
                 throw new NotImplementedException();
             }
@@ -297,7 +312,12 @@ namespace Microsoft.Data.Entity.Tests
                 throw new NotImplementedException();
             }
 
-            public InternalEntityEntry GetPrincipal(IPropertyAccessor dependentEntry, IForeignKey foreignKey)
+            public InternalEntityEntry GetPrincipal(InternalEntityEntry entityEntry, IForeignKey foreignKey)
+            {
+                throw new NotImplementedException();
+            }
+
+            public InternalEntityEntry GetPrincipalUsingRelationshipSnapshot(InternalEntityEntry entityEntry, IForeignKey foreignKey)
             {
                 throw new NotImplementedException();
             }
@@ -1606,7 +1626,7 @@ namespace Microsoft.Data.Entity.Tests
             var servicesMock = new Mock<IDatabaseProviderServices>();
             servicesMock.Setup(m => m.Database).Returns(database.Object);
             servicesMock.Setup(m => m.ModelSource).Returns(new Mock<ModelSource>(new DbSetFinder(), new CoreConventionSetBuilder())
-                { CallBase = true }.Object);
+            { CallBase = true }.Object);
             servicesMock
                 .Setup(m => m.ModelValidator)
                 .Returns(new LoggingModelValidator(new Logger<LoggingModelValidator>(new LoggerFactory())));
@@ -1617,7 +1637,7 @@ namespace Microsoft.Data.Entity.Tests
 
             var services = new ServiceCollection();
             services.AddEntityFramework();
-            services.AddInstance(sourceMock.Object);
+            services.AddSingleton(sourceMock.Object);
             var serviceProvider = services.BuildServiceProvider();
 
             using (var context = new EarlyLearningCenter(serviceProvider, new DbContextOptionsBuilder().Options))
@@ -1650,7 +1670,7 @@ namespace Microsoft.Data.Entity.Tests
             servicesMock.Setup(m => m.Database).Returns(database.Object);
             servicesMock.Setup(m => m.ValueGeneratorSelector).Returns(valueGenMock.Object);
             servicesMock.Setup(m => m.ModelSource).Returns(new Mock<ModelSource>(new DbSetFinder(), new CoreConventionSetBuilder())
-                { CallBase = true }.Object);
+            { CallBase = true }.Object);
             servicesMock
                 .Setup(m => m.ModelValidator)
                 .Returns(new LoggingModelValidator(new Logger<LoggingModelValidator>(new LoggerFactory())));
@@ -1661,7 +1681,7 @@ namespace Microsoft.Data.Entity.Tests
 
             var services = new ServiceCollection();
             services.AddEntityFramework();
-            services.AddInstance(sourceMock.Object);
+            services.AddSingleton(sourceMock.Object);
             var serviceProvider = services.BuildServiceProvider();
 
             using (var context = new EarlyLearningCenter(serviceProvider, new DbContextOptionsBuilder().Options))
@@ -1698,18 +1718,18 @@ namespace Microsoft.Data.Entity.Tests
             servicesMock.Setup(m => m.Database).Returns(database.Object);
             servicesMock.Setup(m => m.ValueGeneratorSelector).Returns(valueGenMock.Object);
             servicesMock.Setup(m => m.ModelSource).Returns(new Mock<ModelSource>(new DbSetFinder(), new CoreConventionSetBuilder())
-                { CallBase = true }.Object);
+            { CallBase = true }.Object);
             servicesMock
                 .Setup(m => m.ModelValidator)
                 .Returns(new LoggingModelValidator(new Logger<LoggingModelValidator>(new LoggerFactory())));
-                
+
             var sourceMock = new Mock<IDatabaseProvider>();
             sourceMock.Setup(m => m.IsConfigured(It.IsAny<IDbContextOptions>())).Returns(true);
             sourceMock.Setup(m => m.GetProviderServices(It.IsAny<IServiceProvider>())).Returns(servicesMock.Object);
 
             var services = new ServiceCollection();
             services.AddEntityFramework();
-            services.AddInstance(sourceMock.Object);
+            services.AddSingleton(sourceMock.Object);
             var serviceProvider = services.BuildServiceProvider();
 
             using (var context = new EarlyLearningCenter(serviceProvider, new DbContextOptionsBuilder().Options))
@@ -1735,7 +1755,7 @@ namespace Microsoft.Data.Entity.Tests
         {
             using (var context = new EarlyLearningCenter())
             {
-                Assert.IsType<KeyValueFactorySource>(context.GetService<IKeyValueFactorySource>());
+                Assert.IsType<DbSetFinder>(context.GetService<IDbSetFinder>());
             }
         }
 
@@ -1760,7 +1780,7 @@ namespace Microsoft.Data.Entity.Tests
         [Fact]
         public void Can_start_with_custom_services_by_passing_in_base_service_provider()
         {
-            var factory = Mock.Of<IOriginalValuesFactory>();
+            var factory = Mock.Of<INavigationFixer>();
             var serviceCollection = new ServiceCollection()
                 .AddSingleton<IDbSetFinder, DbSetFinder>()
                 .AddSingleton<IDbSetSource, DbSetSource>()
@@ -1771,13 +1791,13 @@ namespace Microsoft.Data.Entity.Tests
                 .AddScoped<IDbSetInitializer, DbSetInitializer>()
                 .AddScoped<IDbContextServices, DbContextServices>()
                 .AddLogging()
-                .AddInstance(factory);
+                .AddSingleton(factory);
 
             var provider = serviceCollection.BuildServiceProvider();
 
             using (var context = new EarlyLearningCenter(provider))
             {
-                Assert.Same(factory, context.GetService<IOriginalValuesFactory>());
+                Assert.Same(factory, context.GetService<INavigationFixer>());
             }
         }
 
@@ -1800,7 +1820,7 @@ namespace Microsoft.Data.Entity.Tests
             var loggerFactory = new FakeLoggerFactory();
 
             serviceCollection
-                .AddInstance<ILoggerFactory>(loggerFactory)
+                .AddSingleton<ILoggerFactory>(loggerFactory)
                 .AddEntityFramework();
 
             var provider = serviceCollection.BuildServiceProvider();
@@ -1819,7 +1839,7 @@ namespace Microsoft.Data.Entity.Tests
                 .AddEntityFramework();
 
             serviceCollection
-                .AddInstance<ILoggerFactory>(loggerFactory);
+                .AddSingleton<ILoggerFactory>(loggerFactory);
 
             var provider = serviceCollection.BuildServiceProvider();
 
@@ -1829,16 +1849,16 @@ namespace Microsoft.Data.Entity.Tests
         [Fact]
         public void Can_replace_already_registered_service_with_new_service()
         {
-            var factory = Mock.Of<IOriginalValuesFactory>();
+            var factory = Mock.Of<INavigationFixer>();
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddEntityFramework();
-            serviceCollection.AddInstance(factory);
+            serviceCollection.AddSingleton(factory);
 
             var provider = serviceCollection.BuildServiceProvider();
 
             using (var context = new EarlyLearningCenter(provider))
             {
-                Assert.Same(factory, context.GetService<IOriginalValuesFactory>());
+                Assert.Same(factory, context.GetService<INavigationFixer>());
             }
         }
 
@@ -1848,7 +1868,7 @@ namespace Microsoft.Data.Entity.Tests
             var modelSource = Mock.Of<IModelSource>();
 
             var services = new ServiceCollection()
-                .AddInstance(modelSource);
+                .AddSingleton(modelSource);
 
             var provider = TestHelpers.Instance.CreateServiceProvider(services);
 
@@ -2004,8 +2024,6 @@ namespace Microsoft.Data.Entity.Tests
 
         private class FakeLoggerFactory : ILoggerFactory
         {
-            public LogLevel MinimumLevel { get; set; }
-
             public ILogger CreateLogger(string name)
             {
                 return null;
@@ -2181,8 +2199,8 @@ namespace Microsoft.Data.Entity.Tests
 
         private class ContextWithParameters : DbContext
         {
-            public int ParamInt { get; set; }
-            public string ParamStr { get; set; }
+            public int ParamInt { get; }
+            public string ParamStr { get; }
 
             public ContextWithParameters(int paramInt, string paramStr)
             {
@@ -2516,8 +2534,10 @@ namespace Microsoft.Data.Entity.Tests
             var entityTypeMock = new Mock<IEntityType>();
             entityTypeMock.Setup(e => e.GetProperties()).Returns(new IProperty[0]);
 
+            entityTypeMock.As<IPropertyCountsAccessor>().Setup(e => e.Counts).Returns(new PropertyCounts(0, 0, 0, 0, 0, 0));
+
             var internalEntryMock = new Mock<InternalEntityEntry>(
-                Mock.Of<IStateManager>(), entityTypeMock.Object, Mock.Of<IEntityEntryMetadataServices>());
+                Mock.Of<IStateManager>(), entityTypeMock.Object);
             return internalEntryMock;
         }
 
@@ -2540,7 +2560,7 @@ namespace Microsoft.Data.Entity.Tests
             Assert.True(
                 methodCount == expectedMethodCount,
                 userMessage: $"Expected {expectedMethodCount} methods on DbContext but found {methodCount}. " +
-                    "Update test to ensure all methods throw ObjectDisposedException after dispose.");
+                             "Update test to ensure all methods throw ObjectDisposedException after dispose.");
 
             // getters
             Assert.Throws<ObjectDisposedException>(() => context.ChangeTracker);
@@ -2549,13 +2569,13 @@ namespace Microsoft.Data.Entity.Tests
             var expectedProperties = new List<string> { "ChangeTracker", "Database", "Model" };
 
             Assert.True(expectedProperties.SequenceEqual(
-                    typeof(DbContext)
+                typeof(DbContext)
                     .GetProperties()
                     .Select(p => p.Name)
                     .OrderBy(s => s)
                     .ToList()),
-                userMessage: "Unexpected properties on DbContext. " + 
-                    "Update test to ensure all getters throw ObjectDisposedException after dispose.");
+                userMessage: "Unexpected properties on DbContext. " +
+                             "Update test to ensure all getters throw ObjectDisposedException after dispose.");
 
             Assert.Throws<ObjectDisposedException>(() => ((IInfrastructure<IServiceProvider>)context).Instance);
         }
@@ -2568,7 +2588,10 @@ namespace Microsoft.Data.Entity.Tests
             context.Dispose();
 
             var ex = Assert.Throws<ObjectDisposedException>(() => context.Model);
-            Assert.Contains(nameof(EarlyLearningCenter), ex.Message);
+            if (!TestPlatformHelper.IsMono) 
+            {
+                Assert.Contains(nameof(EarlyLearningCenter), ex.Message);
+            }
         }
 
         [Fact]
@@ -2590,13 +2613,14 @@ namespace Microsoft.Data.Entity.Tests
 
         public class FakeServiceProvider : IServiceProvider, IDisposable
         {
-            private IServiceProvider _realProvider;
+            private readonly IServiceProvider _realProvider;
 
             public FakeServiceProvider()
             {
                 _realProvider = ((IInfrastructure<IServiceCollection>)new ServiceCollection().AddEntityFramework())
                     .Instance.BuildServiceProvider();
             }
+
             public bool Disposed { get; set; }
 
             public void Dispose()
@@ -2621,8 +2645,8 @@ namespace Microsoft.Data.Entity.Tests
             {
                 public static FakeServiceScope Scope { get; } = new FakeServiceScope();
                 public IServiceScope CreateScope() => Scope;
-
             }
+
             public class FakeServiceScope : IServiceScope
             {
                 public bool Disposed { get; set; }

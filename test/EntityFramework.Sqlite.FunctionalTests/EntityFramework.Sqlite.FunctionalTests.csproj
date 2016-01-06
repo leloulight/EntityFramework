@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Microsoft.Data.Entity.Sqlite.FunctionalTests</RootNamespace>
     <AssemblyName>EntityFramework.Sqlite.FunctionalTests</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -26,7 +26,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -52,6 +52,8 @@
     <Compile Include="DataAnnotationSqliteTest.cs" />
     <Compile Include="DefaultValuesTest.cs" />
     <Compile Include="F1SqliteFixture.cs" />
+    <Compile Include="GearsOfWarFromSqlQuerySqliteTest.cs" />
+    <Compile Include="SqliteDatabaseCreatorTest.cs" />
     <Compile Include="SqliteForeignKeyTest.cs" />
     <Compile Include="FromSqlQuerySqliteTest.cs" />
     <Compile Include="GearsOfWarQuerySqliteFixture.cs" />
@@ -74,7 +76,7 @@
     <Compile Include="OneToOneQuerySqliteFixture.cs" />
     <Compile Include="OptimisticConcurrencySqliteTest.cs" />
     <Compile Include="PropertyEntrySqliteTest.cs" />
-    <Compile Include="QueryNavigationsInMemoryTest.cs" />
+    <Compile Include="QueryNavigationsSqliteTest.cs" />
     <Compile Include="QueryNoClientEvalSqliteTest.cs" />
     <Compile Include="QueryNoClientEvalSqliteFixture.cs" />
     <Compile Include="QuerySqliteTest.cs" />

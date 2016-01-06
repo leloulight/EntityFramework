@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
@@ -16,7 +17,9 @@ namespace Microsoft.Data.Entity.Storage.Internal
         private readonly ISensitiveDataLogger _logger;
         private readonly DiagnosticSource _diagnosticSource;
         private readonly IRelationalTypeMapper _typeMapper;
-        private readonly List<RelationalParameter> _parameters = new List<RelationalParameter>();
+
+        private readonly IndentedStringBuilder _commandTextBuilder = new IndentedStringBuilder();
+        private readonly List<IRelationalParameter> _parameters = new List<IRelationalParameter>();
 
         public RelationalCommandBuilder(
             [NotNull] ISensitiveDataLogger logger,
@@ -32,34 +35,40 @@ namespace Microsoft.Data.Entity.Storage.Internal
             _typeMapper = typeMapper;
         }
 
-        public virtual IndentedStringBuilder CommandTextBuilder { get; } = new IndentedStringBuilder();
+        IndentedStringBuilder IInfrastructure<IndentedStringBuilder>.Instance
+            => _commandTextBuilder;
 
-        public virtual IRelationalCommandBuilder AddParameter(
-            [NotNull] string name,
-            [CanBeNull] object value,
-            [NotNull] Func<IRelationalTypeMapper, RelationalTypeMapping> mapType,
-            bool? nullable)
+        public virtual IRelationalParameter CreateParameter(
+            string name,
+            object value,
+            Func<IRelationalTypeMapper, RelationalTypeMapping> mapType,
+            bool? nullable,
+            string invariantName)
+            => new RelationalParameter(
+                name,
+                value,
+                mapType(_typeMapper),
+                nullable,
+                invariantName);
+
+        public virtual void AddParameter(IRelationalParameter relationalParameter)
         {
-            Check.NotEmpty(name, nameof(name));
-            Check.NotNull(mapType, nameof(mapType));
+            Check.NotNull(relationalParameter, nameof(relationalParameter));
 
-            _parameters.Add(
-                new RelationalParameter(
-                    name,
-                    value,
-                    mapType(_typeMapper),
-                    nullable));
-
-            return this;
+            if (relationalParameter.InvariantName == null
+                || _parameters.All(p => p.InvariantName != relationalParameter.InvariantName))
+            {
+                _parameters.Add(relationalParameter);
+            }
         }
 
-        public virtual IRelationalCommand BuildRelationalCommand()
-                => new RelationalCommand(
-                    _logger,
-                    _diagnosticSource,
-                    CommandTextBuilder.ToString(),
-                    _parameters);
+        public virtual IRelationalCommand Build()
+            => new RelationalCommand(
+                _logger,
+                _diagnosticSource,
+                _commandTextBuilder.ToString(),
+                _parameters);
 
-        public override string ToString() => CommandTextBuilder.ToString();
+        public override string ToString() => _commandTextBuilder.ToString();
     }
 }

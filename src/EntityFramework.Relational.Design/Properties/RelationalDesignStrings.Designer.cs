@@ -21,38 +21,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// ConnectionString is required to generate code.
-        /// </summary>
-        public static string ConnectionStringRequired
-        {
-            get { return GetString("ConnectionStringRequired"); }
-        }
-
-        /// <summary>
-        /// The context class name passed in, {contextClassName}, is not a valid C# identifier.
-        /// </summary>
-        public static string ContextClassNotValidCSharpIdentifier([CanBeNull] object contextClassName)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("ContextClassNotValidCSharpIdentifier", "contextClassName"), contextClassName);
-        }
-
-        /// <summary>
-        /// There was an error running the DbContext template. Message: {errorMessage}
-        /// </summary>
-        public static string ErrorRunningDbContextTemplate([CanBeNull] object errorMessage)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("ErrorRunningDbContextTemplate", "errorMessage"), errorMessage);
-        }
-
-        /// <summary>
-        /// There was an error running the EntityType template. Message: {errorMessage}
-        /// </summary>
-        public static string ErrorRunningEntityTypeTemplate([CanBeNull] object errorMessage)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("ErrorRunningEntityTypeTemplate", "errorMessage"), errorMessage);
-        }
-
-        /// <summary>
         /// Could not scaffold the foreign key '{foreignKeyName}'. A key for '{columnsList}' was not found in the principal entity type '{principalEntityType}'.
         /// </summary>
         public static string ForeignKeyScaffoldErrorPrincipalKeyNotFound([CanBeNull] object foreignKeyName, [CanBeNull] object columnsList, [CanBeNull] object principalEntityType)
@@ -101,27 +69,11 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// ProjectPath is required to generate code.
+        /// Metadata model returned should not be null. Provider: {providerTypeName}.
         /// </summary>
-        public static string ProjectPathRequired
+        public static string ProviderReturnedNullModel([CanBeNull] object providerTypeName)
         {
-            get { return GetString("ProjectPathRequired"); }
-        }
-
-        /// <summary>
-        /// Provider is required to generate code.
-        /// </summary>
-        public static string ProviderRequired
-        {
-            get { return GetString("ProviderRequired"); }
-        }
-
-        /// <summary>
-        /// Metadata model returned should not be null. Provider: {providerTypeName} , connection string: {connectionString}.
-        /// </summary>
-        public static string ProviderReturnedNullModel([CanBeNull] object providerTypeName, [CanBeNull] object connectionString)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("ProviderReturnedNullModel", "providerTypeName", "connectionString"), providerTypeName, connectionString);
+            return string.Format(CultureInfo.CurrentCulture, GetString("ProviderReturnedNullModel", "providerTypeName"), providerTypeName);
         }
 
         /// <summary>
@@ -133,38 +85,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Root namespace of the project is required to generate code.
-        /// </summary>
-        public static string RootNamespaceRequired
-        {
-            get { return GetString("RootNamespaceRequired"); }
-        }
-
-        /// <summary>
-        /// Template Processing Failed: {errorMessages}
-        /// </summary>
-        public static string TemplateProcessingFailed([CanBeNull] object errorMessages)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("TemplateProcessingFailed", "errorMessages"), errorMessages);
-        }
-
-        /// <summary>
-        /// Unable to add a Navigation Property referencing type {referencedEntityTypeName} because of errors generating that EntityType.
-        /// </summary>
-        public static string UnableToAddNavigationProperty([CanBeNull] object referencedEntityTypeName)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToAddNavigationProperty", "referencedEntityTypeName"), referencedEntityTypeName);
-        }
-
-        /// <summary>
-        /// Unable to create metadata reference from name {metadataReferenceName}.
-        /// </summary>
-        public static string UnableToCreateMetadataReference([CanBeNull] object metadataReferenceName)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToCreateMetadataReference", "metadataReferenceName"), metadataReferenceName);
-        }
-
-        /// <summary>
         /// Unable to generate entity type for table '{tableName}'.
         /// </summary>
         public static string UnableToGenerateEntityType([CanBeNull] object tableName)
@@ -173,11 +93,11 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Unable to scaffold the index '{indexName}' because one of the properties it contains could not be scaffolded.
+        /// Unable to scaffold the index '{indexName}' because at least one of the properties it contains could not be scaffolded.
         /// </summary>
-        public static string UnableToScaffoldIndex([CanBeNull] object indexName)
+        public static string UnableToScaffoldIndexMissingProperty([CanBeNull] object indexName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToScaffoldIndex", "indexName"), indexName);
+            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToScaffoldIndexMissingProperty", "indexName"), indexName);
         }
 
         /// <summary>
@@ -186,6 +106,30 @@ namespace Microsoft.Data.Entity.Internal
         public static string MissingUseProviderMethodNameAnnotation
         {
             get { return GetString("MissingUseProviderMethodNameAnnotation"); }
+        }
+
+        /// <summary>
+        /// The following file(s) already exist in directory {outputDirectoryName}: {existingFiles}. Use the Force flag to overwrite these files.
+        /// </summary>
+        public static string ExistingFiles([CanBeNull] object outputDirectoryName, [CanBeNull] object existingFiles)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ExistingFiles", "outputDirectoryName", "existingFiles"), outputDirectoryName, existingFiles);
+        }
+
+        /// <summary>
+        /// Sequence name cannot be null or empty. Entity Framework cannot model a sequence that does not have a name.
+        /// </summary>
+        public static string SequencesRequireName
+        {
+            get { return GetString("SequencesRequireName"); }
+        }
+
+        /// <summary>
+        /// For sequence '{sequenceName}'. Unable to scaffold because it uses an unsupported type: '{typeName}'.
+        /// </summary>
+        public static string BadSequenceType([CanBeNull] object sequenceName, [CanBeNull] object typeName)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("BadSequenceType", "sequenceName", "typeName"), sequenceName, typeName);
         }
 
         private static string GetString(string name, params string[] formatterNames)

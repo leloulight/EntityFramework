@@ -5,16 +5,18 @@ namespace E2E.Sqlite
 {
     public partial class SelfRefFluentApiContext : DbContext
     {
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            options.UseSqlite(@"Data Source=SelfRefFluentApi.db;Cache=Private");
+            optionsBuilder.UseSqlite(@"Data Source=SelfRefFluentApi.db;Cache=Private");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<SelfRef>(entity =>
             {
-                entity.HasOne(d => d.SelfForeignKeyNavigation).WithMany(p => p.InverseSelfForeignKeyNavigation).HasForeignKey(d => d.SelfForeignKey);
+                entity.HasOne(d => d.SelfForeignKeyNavigation)
+                    .WithMany(p => p.InverseSelfForeignKeyNavigation)
+                    .HasForeignKey(d => d.SelfForeignKey);
             });
         }
 

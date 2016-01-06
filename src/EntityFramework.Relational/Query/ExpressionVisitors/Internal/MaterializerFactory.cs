@@ -32,7 +32,7 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             _relationalAnnotationProvider = relationalAnnotationProvider;
         }
 
-        public virtual Expression CreateMaterializer(
+        public virtual LambdaExpression CreateMaterializer(
             IEntityType entityType,
             SelectExpression selectExpression,
             Func<IProperty, SelectExpression, int> projectionAdder,
@@ -48,7 +48,7 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             var concreteEntityTypes
                 = entityType.GetConcreteTypesInHierarchy().ToArray();
 
-            var indexMap = new int[concreteEntityTypes[0].GetProperties().Count()];
+            var indexMap = new int[concreteEntityTypes[0].PropertyCount()];
             var propertyIndex = 0;
 
             foreach (var property in concreteEntityTypes[0].GetProperties())
@@ -62,8 +62,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
                     .CreateMaterializeExpression(
                         concreteEntityTypes[0], valueBufferParameter, indexMap);
 
-            if (concreteEntityTypes.Length == 1
-                && concreteEntityTypes[0].RootType() == concreteEntityTypes[0])
+            if ((concreteEntityTypes.Length == 1)
+                && (concreteEntityTypes[0].RootType() == concreteEntityTypes[0]))
             {
                 return Expression.Lambda<Func<ValueBuffer, object>>(materializer, valueBufferParameter);
             }
@@ -119,7 +119,7 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
 
             foreach (var concreteEntityType in concreteEntityTypes.Skip(1))
             {
-                indexMap = new int[concreteEntityType.GetProperties().Count()];
+                indexMap = new int[concreteEntityType.PropertyCount()];
                 propertyIndex = 0;
 
                 foreach (var property in concreteEntityType.GetProperties())

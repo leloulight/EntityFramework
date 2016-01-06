@@ -57,17 +57,17 @@ namespace Microsoft.Data.Entity.Query.ExpressionTranslators
             return null;
         }
 
-        private Expression TranslateInternal(
+        private static Expression TranslateInternal(
             Func<ExpressionType, ExpressionType> opFunc,
             ExpressionType op,
             MethodCallExpression methodCall,
             ConstantExpression constant)
         {
-            if (methodCall != null
-                && methodCall.Method == _methodInfo
-                && methodCall.Type == typeof(int)
-                && constant != null
-                && constant.Type == typeof(int))
+            if ((methodCall != null)
+                && (methodCall.Method == _methodInfo)
+                && (methodCall.Type == typeof(int))
+                && (constant != null)
+                && (constant.Type == typeof(int)))
             {
                 var arguments = methodCall.Arguments.ToList();
                 var leftString = arguments[0];

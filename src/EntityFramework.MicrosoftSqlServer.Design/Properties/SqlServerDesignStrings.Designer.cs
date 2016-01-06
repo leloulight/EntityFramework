@@ -13,27 +13,35 @@ namespace Microsoft.Data.Entity.Internal
             = new ResourceManager("EntityFramework.MicrosoftSqlServer.Design.SqlServerDesignStrings", typeof(SqlServerDesignStrings).GetTypeInfo().Assembly);
 
         /// <summary>
-        /// Could not find foreignKeyMapping for ConstraintId {constraintId} for FromColumn {fromColumnId}. Skipping generation of ForeignKey.
+        /// For column {columnId} unable to interpret default value {defaultValue}. Will not generate code setting a default value for the property {propertyName} on entity type {entityTypeName}.
         /// </summary>
-        public static string CannotFindForeignKeyMappingForConstraintId([CanBeNull] object constraintId, [CanBeNull] object fromColumnId)
+        public static string CannotInterpretDefaultValue([CanBeNull] object columnId, [CanBeNull] object defaultValue, [CanBeNull] object propertyName, [CanBeNull] object entityTypeName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("CannotFindForeignKeyMappingForConstraintId", "constraintId", "fromColumnId"), constraintId, fromColumnId);
+            return string.Format(CultureInfo.CurrentCulture, GetString("CannotInterpretDefaultValue", "columnId", "defaultValue", "propertyName", "entityTypeName"), columnId, defaultValue, propertyName, entityTypeName);
         }
 
         /// <summary>
-        /// For foreign key ConstraintId {constraintId}, could not find relational property mapped to ToColumn {toColumnId}. Skipping generation of ForeignKey.
+        /// Found a column on foreign key [{schemaName}].[{tableName}].[{fkName}] with an empty or null name. Not including column in foreign key
         /// </summary>
-        public static string CannotFindRelationalPropertyForColumnId([CanBeNull] object constraintId, [CanBeNull] object toColumnId)
+        public static string ColumnNameEmptyOnForeignKey([CanBeNull] object schemaName, [CanBeNull] object tableName, [CanBeNull] object fkName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("CannotFindRelationalPropertyForColumnId", "constraintId", "toColumnId"), constraintId, toColumnId);
+            return string.Format(CultureInfo.CurrentCulture, GetString("ColumnNameEmptyOnForeignKey", "schemaName", "tableName", "fkName"), schemaName, tableName, fkName);
         }
 
         /// <summary>
-        /// Unable to interpret the string {sqlServerStringLiteral} as a SQLServer string literal.
+        /// Found a column on index [{schemaName}].[{tableName}].[{indexName}] with an empty or null name. Not including column in index.
         /// </summary>
-        public static string CannotInterpretSqlServerStringLiteral([CanBeNull] object sqlServerStringLiteral)
+        public static string ColumnNameEmptyOnIndex([CanBeNull] object schemaName, [CanBeNull] object tableName, [CanBeNull] object indexName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("CannotInterpretSqlServerStringLiteral", "sqlServerStringLiteral"), sqlServerStringLiteral);
+            return string.Format(CultureInfo.CurrentCulture, GetString("ColumnNameEmptyOnIndex", "schemaName", "tableName", "indexName"), schemaName, tableName, indexName);
+        }
+
+        /// <summary>
+        /// Found a column on table [{schemaName}].[{tableName}] with an empty or null name. Skipping column.
+        /// </summary>
+        public static string ColumnNameEmptyOnTable([CanBeNull] object schemaName, [CanBeNull] object tableName)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ColumnNameEmptyOnTable", "schemaName", "tableName"), schemaName, tableName);
         }
 
         /// <summary>
@@ -45,27 +53,27 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// For foreign key constraint {constraintId}.  The target column(s) belong to table [{schemaName}].[{tableName}] which was excluded from code generation.
+        /// Found a foreign key on table [{schemaName}].[{tableName}] with an empty or null name. Skipping foreign key.
         /// </summary>
-        public static string ForeignKeyTargetTableWasExcluded([CanBeNull] object constraintId, [CanBeNull] object schemaName, [CanBeNull] object tableName)
+        public static string ForeignKeyNameEmpty([CanBeNull] object schemaName, [CanBeNull] object tableName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("ForeignKeyTargetTableWasExcluded", "constraintId", "schemaName", "tableName"), constraintId, schemaName, tableName);
+            return string.Format(CultureInfo.CurrentCulture, GetString("ForeignKeyNameEmpty", "schemaName", "tableName"), schemaName, tableName);
         }
 
         /// <summary>
-        /// For foreign key constraint {constraintId}. Unable to identify any primary or alternate key on entity type {entityTypeName} for properties {propertyNames}. Skipping generation of ForeignKey.
+        /// Found an index on table [{schemaName}].[{tableName}] with an empty or null name. Skipping index.
         /// </summary>
-        public static string NoKeyForColumns([CanBeNull] object constraintId, [CanBeNull] object entityTypeName, [CanBeNull] object propertyNames)
+        public static string IndexNameEmpty([CanBeNull] object schemaName, [CanBeNull] object tableName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("NoKeyForColumns", "constraintId", "entityTypeName", "propertyNames"), constraintId, entityTypeName, propertyNames);
+            return string.Format(CultureInfo.CurrentCulture, GetString("IndexNameEmpty", "schemaName", "tableName"), schemaName, tableName);
         }
 
         /// <summary>
-        /// Unable to identify any primary key columns in the underlying SQL Server table [{schemaName}].[{tableName}].
+        /// Found a sequence in schema [{schemaName}] with an empty or null name. Skipping sequence.
         /// </summary>
-        public static string NoPrimaryKeyColumns([CanBeNull] object schemaName, [CanBeNull] object tableName)
+        public static string SequenceNameEmpty([CanBeNull] object schemaName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("NoPrimaryKeyColumns", "schemaName", "tableName"), schemaName, tableName);
+            return string.Format(CultureInfo.CurrentCulture, GetString("SequenceNameEmpty", "schemaName"), schemaName);
         }
 
         /// <summary>
@@ -77,19 +85,35 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// For foreign key constraint {constraintId}. Could not find properties mapped to the following columns: {unmappedColumnIds}. Skipping generation of ForeignKey.
+        /// Foreign Key {fkName} contains a column named {columnName} which cannot be found on table [{schemaName}].[{tableName}]. Not including column in foreign key.
         /// </summary>
-        public static string UnableToMatchPropertiesForForeignKey([CanBeNull] object constraintId, [CanBeNull] object unmappedColumnIds)
+        public static string UnableToFindColumnForForeignKey([CanBeNull] object fkName, [CanBeNull] object columnName, [CanBeNull] object schemaName, [CanBeNull] object tableName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToMatchPropertiesForForeignKey", "constraintId", "unmappedColumnIds"), constraintId, unmappedColumnIds);
+            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToFindColumnForForeignKey", "fkName", "columnName", "schemaName", "tableName"), fkName, columnName, schemaName, tableName);
         }
 
         /// <summary>
-        /// For unique constraint {constraintId}. Could not find properties mapped to the following columns: {unmappedColumnIds}. Skipping generation of AlternateKey.
+        /// Index {indexName} contains a column named {columnName} which cannot be found on table [{schemaName}].[{tableName}]. Not including column in index.
         /// </summary>
-        public static string UnableToMatchPropertiesForUniqueKey([CanBeNull] object constraintId, [CanBeNull] object unmappedColumnIds)
+        public static string UnableToFindColumnForIndex([CanBeNull] object indexName, [CanBeNull] object columnName, [CanBeNull] object schemaName, [CanBeNull] object tableName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToMatchPropertiesForUniqueKey", "constraintId", "unmappedColumnIds"), constraintId, unmappedColumnIds);
+            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToFindColumnForIndex", "indexName", "columnName", "schemaName", "tableName"), indexName, columnName, schemaName, tableName);
+        }
+
+        /// <summary>
+        /// For column {columnName}. Unable to find parent table [{schemaName}].[{tablename}]. Skipping column.
+        /// </summary>
+        public static string UnableToFindTableForColumn([CanBeNull] object columnName, [CanBeNull] object schemaName, [CanBeNull] object tablename)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToFindTableForColumn", "columnName", "schemaName", "tablename"), columnName, schemaName, tablename);
+        }
+
+        /// <summary>
+        /// For index {indexName}. Unable to find parent table [{schemaName}].[{tableName}]. Skipping index.
+        /// </summary>
+        public static string UnableToFindTableForIndex([CanBeNull] object indexName, [CanBeNull] object schemaName, [CanBeNull] object tableName)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("UnableToFindTableForIndex", "indexName", "schemaName", "tableName"), indexName, schemaName, tableName);
         }
 
         private static string GetString(string name, params string[] formatterNames)

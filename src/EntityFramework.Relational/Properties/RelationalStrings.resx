@@ -117,9 +117,6 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="InvalidEnumValue" xml:space="preserve">
-    <value>The value provided for argument '{argumentName}' must be a valid value of enum type '{enumType}'.</value>
-  </data>
   <data name="ModificationFunctionInvalidEntityState" xml:space="preserve">
     <value>Cannot create a ModificationFunction for an entity in state '{entityState}'.</value>
   </data>
@@ -153,17 +150,11 @@
   <data name="TransactionAssociatedWithDifferentConnection" xml:space="preserve">
     <value>The specified transaction is not associated with the current connection. Only transactions associated with the current connection may be used.</value>
   </data>
-  <data name="SequenceDefinitionMismatch" xml:space="preserve">
-    <value>The SQL Server sequence '{sequenceName}' was already specified with a different definition.</value>
-  </data>
-  <data name="RelationalLoggerCreatingDatabase" xml:space="preserve">
-    <value>Creating database '{databaseName}'.</value>
-  </data>
   <data name="RelationalLoggerOpeningConnection" xml:space="preserve">
-    <value>Opening connection '{connectionString}'.</value>
+    <value>Opening connection to database '{database}' on server '{server}'.</value>
   </data>
   <data name="RelationalLoggerClosingConnection" xml:space="preserve">
-    <value>Closing connection '{connectionString}'.</value>
+    <value>Closing connection to database '{database}' on server '{server}'.</value>
   </data>
   <data name="RelationalLoggerBeginningTransaction" xml:space="preserve">
     <value>Beginning transaction with isolation level '{isolationLevel}'.</value>
@@ -179,33 +170,6 @@
   </data>
   <data name="BadSequenceString" xml:space="preserve">
     <value>Unable to deserialize sequence from model metadata. See inner exception for details.</value>
-  </data>
-  <data name="InvalidMigrationId" xml:space="preserve">
-    <value>'{migrationId}' is not a valid migration identifier.</value>
-  </data>
-  <data name="LocalMigrationNotFound" xml:space="preserve">
-    <value>The history repository includes a migration with the identifier '{migrationId}' but the migration assembly does not contain the corresponding migration class.</value>
-  </data>
-  <data name="MigrationsNotInUse" xml:space="preserve">
-    <value>Migrations-specific methods can only be used when the context is using a migrations-enabled database provider.</value>
-  </data>
-  <data name="MigratorLoggerApplyingMigration" xml:space="preserve">
-    <value>Applying migration '{migrationId}'.</value>
-  </data>
-  <data name="MigratorLoggerCreatingHistoryTable" xml:space="preserve">
-    <value>Creating migration history table.</value>
-  </data>
-  <data name="MigratorLoggerDroppingHistoryTable" xml:space="preserve">
-    <value>Dropping migration history table.</value>
-  </data>
-  <data name="MigratorLoggerRevertingMigration" xml:space="preserve">
-    <value>Reverting migration '{migrationId}'.</value>
-  </data>
-  <data name="MigratorLoggerUpToDate" xml:space="preserve">
-    <value>The database is up to date.</value>
-  </data>
-  <data name="MissingMigrationMetadata" xml:space="preserve">
-    <value>'{migrationType}' does not implement IMigrationMetadata.</value>
   </data>
   <data name="MigrationNotFound" xml:space="preserve">
     <value>The migration '{migrationName}' was not found.</value>
@@ -247,7 +211,7 @@
     <value>Applying migration '{migration}'.</value>
   </data>
   <data name="RevertingMigration" xml:space="preserve">
-    <value>Unapplying migration '{migration}'.</value>
+    <value>Reverting migration '{migration}'.</value>
   </data>
   <data name="UsingConnection" xml:space="preserve">
     <value>Using database '{database}' on server '{dataSource}'.</value>
@@ -259,16 +223,10 @@
     <value>Cannot use table '{table}' in schema '{schema}' for entity '{entityType}' since it is being used for another entity.</value>
     <comment>Schema can be null</comment>
   </data>
-  <data name="InvalidCreateScript" xml:space="preserve">
-    <value>GetCreateScript only handles operations in a single batch. For more advanced scenarios, override HistoryRepository.GetCreateScript in your provider.</value>
-  </data>
-  <data name="DuplicateParameterName" xml:space="preserve">
-    <value>The parameter '{parameterName}' was already specified with a different value.</value>
-  </data>
   <data name="DiscriminatorEntityTypeNotDerived" xml:space="preserve">
     <value>Cannot configure the discriminator value for entity type '{entityType}' because it doesn't derive from '{rootEntityType}'.</value>
   </data>
-  <data name="DiscriminitatorValueIncompatible" xml:space="preserve">
+  <data name="DiscriminatorValueIncompatible" xml:space="preserve">
     <value>Cannot set discriminator value '{value}' for discriminator property '{discriminator}' because it is not assignable to property of type '{discriminatorType}'.</value>
   </data>
   <data name="NoDiscriminatorForValue" xml:space="preserve">
@@ -280,22 +238,22 @@
   <data name="NoDiscriminatorValue" xml:space="preserve">
     <value>The entity type '{entityType}' is part of a hierarchy, but does not have a discriminator value configured.</value>
   </data>
-  <data name="InvalidKeyValue" xml:space="preserve">
-    <value>Unable to materialize an entity of type '{entityType}' because it has an null key value.</value>
-  </data>
   <data name="ClientEvalDisabled" xml:space="preserve">
-    <value>Unabled to compile the LINQ expression '{expression}' because it requires client evaluation, which is disabled. Either enable client evaluation or rewrite the query to not require client evaluation.</value>
+    <value>Unable to compile the LINQ expression '{expression}' because it requires client evaluation, which is disabled. Either enable client evaluation or rewrite the query to not require client evaluation.</value>
   </data>
   <data name="ClientEvalWarning" xml:space="preserve">
     <value>The LINQ expression '{expression}' could not be translated and will be evaluated locally.</value>
-  </data>
-  <data name="ParameterLoggingEnabled" xml:space="preserve">
-    <value>SQL parameter value logging is enabled. As SQL parameter values may include sensitive application data, this mode should only be enabled during development.</value>
   </data>
   <data name="RelationalLoggerExecutedCommand" xml:space="preserve">
     <value>Executed DbCommand ({elapsed}ms) [Parameters=[{parameters}], CommandType='{commandType}', CommandTimeout='{commandTimeout}']{newLine}{commandText}</value>
   </data>
   <data name="DuplicateColumnName" xml:space="preserve">
     <value>Cannot use column name '{columnName}' in entity '{entityType}' for property '{property}' since it is being used for another property.</value>
+  </data>
+  <data name="NoActiveTransaction" xml:space="preserve">
+    <value>The connection does not have any active transactions.</value>
+  </data>
+  <data name="ConflictingRowUpdates" xml:space="preserve">
+    <value>Two entities cannot make conflicting updates to the same row.</value>
   </data>
 </root>

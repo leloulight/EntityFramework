@@ -3,7 +3,7 @@
 
 using System;
 using JetBrains.Annotations;
-using Microsoft.Data.Entity.ChangeTracking;
+using Microsoft.Data.Entity;
 using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
@@ -18,7 +18,7 @@ using Microsoft.Data.Entity.Utilities;
 using Microsoft.Data.Entity.ValueGeneration;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
+using Remotion.Linq.Parsing.Structure.NodeTypeProviders;
 
 // ReSharper disable once CheckNamespace
 
@@ -42,13 +42,13 @@ namespace Microsoft.Extensions.DependencyInjection
         ///     </para>
         ///     <para>
         ///         The database you are using will also define extension methods that can be called on the returned
-        ///         <see cref="EntityFrameworkServicesBuilder" /> to register the services required by the database. 
+        ///         <see cref="EntityFrameworkServicesBuilder" /> to register the services required by the database.
         ///         For example, when using EntityFramework.MicrosoftSqlServer you would call
         ///         <c>collection.AddEntityFramework().AddSqlServer()</c>.
         ///     </para>
         ///     <para>
-        ///         For derived contexts to be registered in the <see cref="IServiceProvider" /> and resolve their services 
-        ///         from the <see cref="IServiceProvider" /> you must chain a call to the 
+        ///         For derived contexts to be registered in the <see cref="IServiceProvider" /> and resolve their services
+        ///         from the <see cref="IServiceProvider" /> you must chain a call to the
         ///         <see cref="EntityFrameworkServicesBuilder.AddDbContext{TContext}" /> method on the returned
         ///         <see cref="EntityFrameworkServicesBuilder" />.
         ///     </para>
@@ -85,20 +85,16 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AddSingleton<IDbSetFinder, DbSetFinder>()
                 .AddSingleton<IDbSetInitializer, DbSetInitializer>()
                 .AddSingleton<IDbSetSource, DbSetSource>()
-                .AddSingleton<IKeyValueFactorySource, KeyValueFactorySource>()
                 .AddSingleton<ICollectionTypeFactory, CollectionTypeFactory>()
                 .AddSingleton<IEntityMaterializerSource, EntityMaterializerSource>()
                 .AddSingleton<IMemberMapper, MemberMapper>()
                 .AddSingleton<IFieldMatcher, FieldMatcher>()
-                .AddSingleton<IOriginalValuesFactory, OriginalValuesFactory>()
-                .AddSingleton<IRelationshipsSnapshotFactory, RelationshipsSnapshotFactory>()
-                .AddSingleton<IStoreGeneratedValuesFactory, StoreGeneratedValuesFactory>()
-                .AddSingleton<IEntityEntryMetadataServices, EntityEntryMetadataServices>()
                 .AddSingleton<ICoreConventionSetBuilder, CoreConventionSetBuilder>()
                 .AddSingleton<LoggingModelValidator>()
                 .AddScoped<IKeyPropagator, KeyPropagator>()
                 .AddScoped<INavigationFixer, NavigationFixer>()
                 .AddScoped<IStateManager, StateManager>()
+                .AddScoped<IConcurrencyDetector, ConcurrencyDetector>()
                 .AddScoped<IInternalEntityEntryFactory, InternalEntityEntryFactory>()
                 .AddScoped<IInternalEntityEntryNotifier, InternalEntityEntryNotifier>()
                 .AddScoped<IInternalEntityEntrySubscriber, InternalEntityEntrySubscriber>()
@@ -110,11 +106,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AddScoped<IDatabaseProviderSelector, DatabaseProviderSelector>()
                 .AddScoped<IEntityGraphAttacher, EntityGraphAttacher>()
                 .AddScoped<ValueGeneratorSelector>()
+                .AddScoped(typeof(ISensitiveDataLogger<>), typeof(SensitiveDataLogger<>))
                 .AddScoped(p => GetContextServices(p).Model)
                 .AddScoped(p => GetContextServices(p).Context)
                 .AddScoped(p => GetContextServices(p).ContextOptions)
                 .AddScoped(p => GetContextServices(p).DatabaseProviderServices)
                 .AddScoped(p => GetProviderServices(p).Database)
+                .AddScoped(p => GetProviderServices(p).TransactionManager)
                 .AddScoped(p => GetProviderServices(p).ValueGeneratorSelector)
                 .AddScoped(p => GetProviderServices(p).Creator)
                 .AddScoped(p => GetProviderServices(p).ConventionSetBuilder)
@@ -133,6 +131,7 @@ namespace Microsoft.Extensions.DependencyInjection
             return serviceCollection
                 .AddSingleton<IMemoryCache, MemoryCache>()
                 .AddSingleton<ICompiledQueryCache, CompiledQueryCache>()
+                .AddSingleton(_ => MethodInfoBasedNodeTypeRegistry.CreateFromRelinqAssembly())
                 .AddScoped<IAsyncQueryProvider, EntityQueryProvider>()
                 .AddScoped<IQueryCompiler, QueryCompiler>()
                 .AddScoped<IQueryAnnotationExtractor, QueryAnnotationExtractor>()

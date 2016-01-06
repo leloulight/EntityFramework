@@ -21,8 +21,8 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             private const int BitsForPropertyFlags = 2;
             private const int BitsForAdditionalState = BitsForEntityState + BitsForEntityFlags;
             private const int EntityStateMask = 0x07;
-            private const int TransparentSidecarMask = 0x08;
-            private const int AdditionalStateMask = EntityStateMask | TransparentSidecarMask;
+            private const int UnusedStateMask = 0x08; // So entity state uses even number of bits
+            private const int AdditionalStateMask = EntityStateMask | UnusedStateMask;
 
             private readonly int[] _bits;
 
@@ -52,17 +52,11 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
                 set { _bits[0] = (_bits[0] & ~EntityStateMask) | (int)value; }
             }
 
-            public bool TransparentSidecarInUse
-            {
-                get { return (_bits[0] & TransparentSidecarMask) != 0; }
-                set { _bits[0] = (_bits[0] & ~TransparentSidecarMask) | (value ? TransparentSidecarMask : 0); }
-            }
-
             public bool IsPropertyFlagged(int propertyIndex, PropertyFlag propertyFlag)
             {
                 propertyIndex = propertyIndex * BitsForPropertyFlags + (int)propertyFlag + BitsForAdditionalState;
 
-                return (_bits[propertyIndex / BitsPerInt] & (1 << propertyIndex % BitsPerInt)) != 0;
+                return (_bits[propertyIndex / BitsPerInt] & (1 << (propertyIndex % BitsPerInt))) != 0;
             }
 
             public void FlagProperty(int propertyIndex, PropertyFlag propertyFlag, bool isFlagged)
@@ -71,11 +65,11 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
 
                 if (isFlagged)
                 {
-                    _bits[propertyIndex / BitsPerInt] |= 1 << propertyIndex % BitsPerInt;
+                    _bits[propertyIndex / BitsPerInt] |= 1 << (propertyIndex % BitsPerInt);
                 }
                 else
                 {
-                    _bits[propertyIndex / BitsPerInt] &= ~(1 << propertyIndex % BitsPerInt);
+                    _bits[propertyIndex / BitsPerInt] &= ~(1 << (propertyIndex % BitsPerInt));
                 }
             }
 

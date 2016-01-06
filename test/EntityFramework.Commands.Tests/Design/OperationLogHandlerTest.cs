@@ -1,6 +1,6 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
-
+#if NET451 || DNX451
 using Xunit;
 
 namespace Microsoft.Data.Entity.Design
@@ -21,8 +21,8 @@ namespace Microsoft.Data.Entity.Design
             handler.WriteError("Princess Celestia does not exist.");
             handler.WriteWarning("Princess Celestia is in danger.");
             handler.WriteInformation("Princess Celestia is on her way.");
-            handler.WriteVerbose("Princess Celestia is an alicorn.");
             handler.WriteDebug("Princess Celestia is a princess.");
+            handler.WriteTrace("Princess Celestia is an alicorn.");
         }
 
         [Fact]
@@ -62,18 +62,6 @@ namespace Microsoft.Data.Entity.Design
         }
 
         [Fact]
-        public void WriteVerbose_works()
-        {
-            string result = null;
-            var handler = new OperationLogHandler(writeVerbose: m => result = m);
-            var message = "Princess Celestia is an alicorn.";
-
-            handler.WriteVerbose(message);
-
-            Assert.Equal(message, result);
-        }
-
-        [Fact]
         public void WriteDebug_works()
         {
             string result = null;
@@ -84,5 +72,18 @@ namespace Microsoft.Data.Entity.Design
 
             Assert.Equal(message, result);
         }
+
+        [Fact]
+        public void WriteTrace_works()
+        {
+            string result = null;
+            var handler = new OperationLogHandler(writeTrace: m => result = m);
+            var message = "Princess Celestia is an alicorn.";
+
+            handler.WriteTrace(message);
+
+            Assert.Equal(message, result);
+        }
     }
 }
+#endif

@@ -25,12 +25,6 @@ namespace Microsoft.Data.Entity.Scaffolding
         internal const string NavigationNameUniquifyingPattern = "{0}Navigation";
         internal const string SelfReferencingPrincipalEndNavigationNamePattern = "Inverse{0}";
 
-        internal static IReadOnlyList<string> IgnoredAnnotations { get; } = new List<string>
-        {
-            CoreAnnotationNames.OriginalValueIndexAnnotation,
-            CoreAnnotationNames.ShadowIndexAnnotation
-        };
-
         protected virtual ILogger Logger { get; }
 
         private Dictionary<TableModel, CSharpUniqueNamer<ColumnModel>> _columnNamers;
@@ -73,16 +67,6 @@ namespace Microsoft.Data.Entity.Scaffolding
 
             VisitDatabaseModel(modelBuilder, databaseModel);
 
-            if (!string.IsNullOrEmpty(databaseModel.DefaultSchemaName))
-            {
-                modelBuilder.HasDefaultSchema(databaseModel.DefaultSchemaName);
-            }
-
-            if (!string.IsNullOrEmpty(databaseModel.DatabaseName))
-            {
-                modelBuilder.Model.Relational().DatabaseName = databaseModel.DatabaseName;
-            }
-
             return modelBuilder.Model;
         }
 
@@ -94,10 +78,16 @@ namespace Microsoft.Data.Entity.Scaffolding
             Check.NotNull(column, nameof(column));
 
             var table = column.Table ?? _nullTable;
+            var usedNames = new List<string>();
+            // TODO - need to clean up the way CSharpNamer & CSharpUniqueNamer work (see issue #3711)
+            if (column.Table != null)
+            {
+                usedNames.Add(_tableNamer.GetName(table));
+            }
 
             if (!_columnNamers.ContainsKey(table))
             {
-                _columnNamers.Add(table, new CSharpUniqueNamer<ColumnModel>(c => c.Name));
+                _columnNamers.Add(table, new CSharpUniqueNamer<ColumnModel>(c => c.Name, usedNames));
             }
 
             return _columnNamers[table].GetName(column);
@@ -108,6 +98,17 @@ namespace Microsoft.Data.Entity.Scaffolding
             Check.NotNull(modelBuilder, nameof(modelBuilder));
             Check.NotNull(databaseModel, nameof(databaseModel));
 
+            if (!string.IsNullOrEmpty(databaseModel.DefaultSchemaName))
+            {
+                modelBuilder.HasDefaultSchema(databaseModel.DefaultSchemaName);
+            }
+
+            if (!string.IsNullOrEmpty(databaseModel.DatabaseName))
+            {
+                modelBuilder.Model.Relational().DatabaseName = databaseModel.DatabaseName;
+            }
+
+            VisitSequences(modelBuilder, databaseModel.Sequences);
             VisitTables(modelBuilder, databaseModel.Tables);
             VisitForeignKeys(modelBuilder, databaseModel.Tables.SelectMany(table => table.ForeignKeys).ToList());
             // TODO can we add navigation properties inline with adding foreign keys?
@@ -116,7 +117,76 @@ namespace Microsoft.Data.Entity.Scaffolding
             return modelBuilder;
         }
 
-        protected virtual ModelBuilder VisitTables([NotNull] ModelBuilder modelBuilder, [NotNull] IList<TableModel> tables)
+        protected virtual ModelBuilder VisitSequences([NotNull] ModelBuilder modelBuilder, [NotNull] ICollection<SequenceModel> sequences)
+        {
+            Check.NotNull(modelBuilder, nameof(modelBuilder));
+            Check.NotNull(sequences, nameof(sequences));
+
+            foreach (var sequence in sequences)
+            {
+                VisitSequence(modelBuilder, sequence);
+            }
+
+            return modelBuilder;
+        }
+
+        protected virtual RelationalSequenceBuilder VisitSequence([NotNull] ModelBuilder modelBuilder, [NotNull] SequenceModel sequence)
+        {
+            Check.NotNull(modelBuilder, nameof(modelBuilder));
+            Check.NotNull(sequence, nameof(sequence));
+
+            if (string.IsNullOrEmpty(sequence.Name))
+            {
+                Logger.LogWarning(RelationalDesignStrings.SequencesRequireName);
+                return null;
+            }
+
+            Type sequenceType = null;
+            if (sequence.DataType != null)
+            {
+                sequenceType = _typeMapper.FindMapping(sequence.DataType)?.ClrType;
+            }
+
+            if (sequenceType != null
+                && !Sequence.SupportedTypes.Contains(sequenceType))
+            {
+                Logger.LogWarning(RelationalDesignStrings.BadSequenceType(sequence.Name, sequence.DataType));
+                return null;
+            }
+
+            var builder = sequenceType != null
+                ? modelBuilder.HasSequence(sequenceType, sequence.Name, sequence.SchemaName)
+                : modelBuilder.HasSequence(sequence.Name, sequence.SchemaName);
+
+            if (sequence.IncrementBy.HasValue)
+            {
+                builder.IncrementsBy(sequence.IncrementBy.Value);
+            }
+
+            if (sequence.Max.HasValue)
+            {
+                builder.HasMax(sequence.Max.Value);
+            }
+
+            if (sequence.Min.HasValue)
+            {
+                builder.HasMin(sequence.Min.Value);
+            }
+
+            if (sequence.Start.HasValue)
+            {
+                builder.StartsAt(sequence.Start.Value);
+            }
+
+            if (sequence.IsCyclic.HasValue)
+            {
+                builder.IsCyclic(sequence.IsCyclic.Value);
+            }
+
+            return builder;
+        }
+
+        protected virtual ModelBuilder VisitTables([NotNull] ModelBuilder modelBuilder, [NotNull] ICollection<TableModel> tables)
         {
             Check.NotNull(modelBuilder, nameof(modelBuilder));
             Check.NotNull(tables, nameof(tables));
@@ -143,7 +213,7 @@ namespace Microsoft.Data.Entity.Scaffolding
 
             var keyBuilder = VisitPrimaryKey(builder, table);
 
-            if(keyBuilder == null)
+            if (keyBuilder == null)
             {
                 var errorMessage = RelationalDesignStrings.UnableToGenerateEntityType(table.DisplayName);
                 Logger.LogWarning(errorMessage);
@@ -159,7 +229,7 @@ namespace Microsoft.Data.Entity.Scaffolding
             return builder;
         }
 
-        protected virtual EntityTypeBuilder VisitColumns([NotNull] EntityTypeBuilder builder, [NotNull] IList<ColumnModel> columns)
+        protected virtual EntityTypeBuilder VisitColumns([NotNull] EntityTypeBuilder builder, [NotNull] ICollection<ColumnModel> columns)
         {
             Check.NotNull(builder, nameof(builder));
             Check.NotNull(columns, nameof(columns));
@@ -177,16 +247,17 @@ namespace Microsoft.Data.Entity.Scaffolding
             Check.NotNull(builder, nameof(builder));
             Check.NotNull(column, nameof(column));
 
-            RelationalTypeMapping mapping;
+            var mapping = column.DataType != null
+                ? _typeMapper.FindMapping(column.DataType)
+                : null;
 
-            if (!_typeMapper.TryGetMapping(column.DataType, out mapping)
-                || mapping.ClrType == null)
+            if (mapping?.ClrType == null)
             {
                 Logger.LogWarning(RelationalDesignStrings.CannotFindTypeMappingForColumn(column.DisplayName, column.DataType));
                 return null;
             }
 
-            var clrType = (column.IsNullable) ? mapping.ClrType.MakeNullable() : mapping.ClrType;
+            var clrType = column.IsNullable ? mapping.ClrType.MakeNullable() : mapping.ClrType;
 
             var property = builder.Property(clrType, GetPropertyName(column));
 
@@ -235,18 +306,18 @@ namespace Microsoft.Data.Entity.Scaffolding
                 .Where(c => c.PrimaryKeyOrdinal.HasValue)
                 .OrderBy(c => c.PrimaryKeyOrdinal)
                 .ToList();
-          
+
             if (keyColumns.Count == 0)
             {
                 Logger.LogWarning(RelationalDesignStrings.MissingPrimaryKey(table.DisplayName));
                 return null;
             }
 
-            var keyProps =  keyColumns.Select(GetPropertyName)
+            var keyProps = keyColumns.Select(GetPropertyName)
                 .Where(name => builder.Metadata.FindProperty(name) != null)
                 .ToArray();
 
-            if(keyProps.Length != keyColumns.Count)
+            if (keyProps.Length != keyColumns.Count)
             {
                 Logger.LogWarning(RelationalDesignStrings.PrimaryKeyErrorPropertyNotFound(table.DisplayName));
                 return null;
@@ -255,19 +326,14 @@ namespace Microsoft.Data.Entity.Scaffolding
             return builder.HasKey(keyProps);
         }
 
-        protected virtual EntityTypeBuilder VisitIndexes([NotNull] EntityTypeBuilder builder, [NotNull] IList<IndexModel> indexes)
+        protected virtual EntityTypeBuilder VisitIndexes([NotNull] EntityTypeBuilder builder, [NotNull] ICollection<IndexModel> indexes)
         {
             Check.NotNull(builder, nameof(builder));
             Check.NotNull(indexes, nameof(indexes));
 
             foreach (var index in indexes)
             {
-                var indexBuilder = VisitIndex(builder, index);
-
-                if (indexBuilder == null)
-                {
-                    Logger.LogWarning(RelationalDesignStrings.UnableToScaffoldIndex(index.Name));
-                }
+                VisitIndex(builder, index);
             }
 
             return builder;
@@ -278,15 +344,46 @@ namespace Microsoft.Data.Entity.Scaffolding
             Check.NotNull(builder, nameof(builder));
             Check.NotNull(index, nameof(index));
 
-            var properties = index.Columns.Select(GetPropertyName).ToArray();
+            var propertyNames = index.IndexColumns
+                .OrderBy(ic => ic.Ordinal)
+                .Select(ic => GetPropertyName(ic.Column))
+                .ToArray();
 
-            if (properties.Count(p => builder.Metadata.FindProperty(p) != null) != properties.Length)
+            if (propertyNames.Count(p => builder.Metadata.FindProperty(p) != null) != propertyNames.Length)
             {
-                // TODO log when index cannot be scaffolding because of missing columns
+                Logger.LogWarning(RelationalDesignStrings.UnableToScaffoldIndexMissingProperty(index.Name));
                 return null;
             }
 
-            var indexBuilder = builder.HasIndex(properties)
+            var columnNames = index.IndexColumns
+                .OrderBy(ic => ic.Ordinal)
+                .Select(ic => ic.Column.Name);
+
+            if (index.Table != null)
+            {
+                var primaryKeyColumns = index.Table.Columns
+                    .Where(c => c.PrimaryKeyOrdinal.HasValue)
+                    .OrderBy(c => c.PrimaryKeyOrdinal);
+                if (columnNames.SequenceEqual(primaryKeyColumns.Select(c => c.Name)))
+                {
+                    // index is supporting the primary key. So there is no need for
+                    // an extra index in the model. But if the index name does not
+                    // match what would be produced by default then need to call
+                    // HasName() on the primary key.
+                    if (index.Name !=
+                        RelationalKeyAnnotations
+                            .GetDefaultKeyName(
+                                index.Table.Name,
+                                true, /* is primary key */
+                                primaryKeyColumns.Select(c => GetPropertyName(c))))
+                    {
+                        builder.HasKey(propertyNames.ToArray()).HasName(index.Name);
+                    }
+                    return null;
+                }
+            }
+
+            var indexBuilder = builder.HasIndex(propertyNames)
                 .IsUnique(index.IsUnique);
 
             if (!string.IsNullOrEmpty(index.Name))
@@ -296,7 +393,7 @@ namespace Microsoft.Data.Entity.Scaffolding
 
             if (index.IsUnique)
             {
-                var keyBuilder = builder.HasAlternateKey(properties);
+                var keyBuilder = builder.HasAlternateKey(propertyNames);
                 if (!string.IsNullOrEmpty(index.Name))
                 {
                     keyBuilder.HasName(index.Name);
@@ -332,13 +429,14 @@ namespace Microsoft.Data.Entity.Scaffolding
 
             var dependentEntityType = modelBuilder.Model.FindEntityType(GetEntityTypeName(foreignKey.Table));
 
-            if(dependentEntityType == null)
+            if (dependentEntityType == null)
             {
                 return null;
             }
 
             var depProps = foreignKey.Columns
-                .Select(GetPropertyName)
+                .OrderBy(fc => fc.Ordinal)
+                .Select(fc => GetPropertyName(fc.Column))
                 .Select(@from => dependentEntityType.FindProperty(@from))
                 .ToList()
                 .AsReadOnly();
@@ -358,8 +456,9 @@ namespace Microsoft.Data.Entity.Scaffolding
                 return null;
             }
 
-            var principalProps = foreignKey.PrincipalColumns
-                .Select(GetPropertyName)
+            var principalProps = foreignKey.Columns
+                .OrderBy(fc => fc.Ordinal)
+                .Select(fc => GetPropertyName(fc.PrincipalColumn))
                 .Select(to => principalEntityType.FindProperty(to))
                 .ToList()
                 .AsReadOnly();
@@ -375,13 +474,17 @@ namespace Microsoft.Data.Entity.Scaffolding
             {
                 var index = principalEntityType.FindIndex(principalProps);
                 if (index != null
-                    && index.IsUnique == true)
+                    && index.IsUnique)
                 {
                     principalKey = principalEntityType.AddKey(principalProps);
                 }
                 else
                 {
-                    var principalColumns = foreignKey.PrincipalColumns.Select(c => c.Name).Aggregate((a, b) => a + "," + b);
+                    var principalColumns = foreignKey.Columns
+                        .OrderBy(fc => fc.Ordinal)
+                        .Select(c => c.PrincipalColumn.Name)
+                        .Aggregate((a, b) => a + "," + b);
+
                     Logger.LogWarning(
                         RelationalDesignStrings.ForeignKeyScaffoldErrorPrincipalKeyNotFound(
                             foreignKey.DisplayName, principalColumns, principalEntityType.DisplayName()));
@@ -392,6 +495,8 @@ namespace Microsoft.Data.Entity.Scaffolding
             var key = dependentEntityType.GetOrAddForeignKey(depProps, principalKey, principalEntityType);
 
             key.IsUnique = dependentEntityType.FindKey(depProps) != null;
+
+            key.Relational().Name = foreignKey.Name;
 
             AssignOnDeleteAction(foreignKey, key);
 
@@ -406,15 +511,13 @@ namespace Microsoft.Data.Entity.Scaffolding
             var model = modelBuilder.Model;
             var modelUtilities = new ModelUtilities();
 
-
             var entityTypeToExistingIdentifiers = new Dictionary<IEntityType, List<string>>();
             foreach (var entityType in model.GetEntityTypes())
             {
                 var existingIdentifiers = new List<string>();
                 entityTypeToExistingIdentifiers.Add(entityType, existingIdentifiers);
                 existingIdentifiers.Add(entityType.Name);
-                existingIdentifiers.AddRange(
-                    modelUtilities.OrderedProperties(entityType).Select(p => p.Name));
+                existingIdentifiers.AddRange(entityType.GetProperties().Select(p => p.Name));
             }
 
             foreach (var entityType in model.GetEntityTypes())

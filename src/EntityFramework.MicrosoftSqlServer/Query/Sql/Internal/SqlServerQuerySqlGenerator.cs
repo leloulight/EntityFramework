@@ -14,11 +14,17 @@ namespace Microsoft.Data.Entity.Query.Sql.Internal
     public class SqlServerQuerySqlGenerator : DefaultQuerySqlGenerator, ISqlServerExpressionVisitor
     {
         public SqlServerQuerySqlGenerator(
-            [NotNull] IRelationalCommandBuilderFactory commandBuilderFactory,
-            [NotNull] ISqlGenerator sqlGenerator,
+            [NotNull] IRelationalCommandBuilderFactory relationalCommandBuilderFactory,
+            [NotNull] ISqlGenerationHelper sqlGenerationHelper,
             [NotNull] IParameterNameGeneratorFactory parameterNameGeneratorFactory,
+            [NotNull] IRelationalTypeMapper relationalTypeMapper,
             [NotNull] SelectExpression selectExpression)
-            : base(commandBuilderFactory, sqlGenerator, parameterNameGeneratorFactory, selectExpression)
+            : base(
+                  relationalCommandBuilderFactory, 
+                  sqlGenerationHelper, 
+                  parameterNameGeneratorFactory, 
+                  relationalTypeMapper, 
+                  selectExpression)
         {
         }
 

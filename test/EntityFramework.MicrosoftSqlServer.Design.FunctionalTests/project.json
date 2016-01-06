@@ -12,7 +12,11 @@
     "test": "xunit.runner.aspnet"
   },
   "frameworks": {
+<<<<<<< HEAD
     "net46": {},
+=======
+    "net451": { },
+>>>>>>> refs/remotes/aspnet/dev
     "dnx451": {
       "dependencies": {
         "Microsoft.Dnx.Runtime": "1.0.0-rc1-final"

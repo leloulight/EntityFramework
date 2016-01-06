@@ -1,12 +1,15 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Internal;
+using Microsoft.Data.Entity.Storage;
 using Microsoft.Data.Entity.Utilities;
 
 namespace Microsoft.Data.Entity.Metadata.Internal
@@ -14,18 +17,9 @@ namespace Microsoft.Data.Entity.Metadata.Internal
     public static class EntityTypeExtensions
     {
         public static string DisplayName([NotNull] this IEntityType entityType)
-        {
-            Check.NotNull(entityType, nameof(entityType));
-
-            if (entityType.ClrType != null)
-            {
-                return entityType.ClrType.DisplayName(false);
-            }
-
-            var lastDot = entityType.Name.LastIndexOfAny(new[] { '.', '+' });
-
-            return lastDot > 0 ? entityType.Name.Substring(lastDot + 1) : entityType.Name;
-        }
+            => entityType.ClrType != null
+                ? entityType.ClrType.DisplayName(fullName: false)
+                : entityType.Name;
 
         public static IEnumerable<IEntityType> GetAllBaseTypesInclusive([NotNull] this IEntityType entityType)
         {
@@ -71,25 +65,104 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             return (entityType as EntityType)?.UseEagerSnapshots ?? false;
         }
 
-        public static int OriginalValueCount([NotNull] this IEntityType entityType)
-        {
-            Check.NotNull(entityType, nameof(entityType));
+        public static int StoreGeneratedCount([NotNull] this IEntityType entityType)
+            => GetCounts(entityType).StoreGeneratedCount;
 
-            return entityType.GetProperties().Count(p => p.GetOriginalValueIndex() >= 0);
-        }
+        public static int RelationshipPropertyCount([NotNull] this IEntityType entityType)
+            => GetCounts(entityType).RelationshipCount;
+
+        public static int OriginalValueCount([NotNull] this IEntityType entityType)
+            => GetCounts(entityType).OriginalValueCount;
 
         public static int ShadowPropertyCount([NotNull] this IEntityType entityType)
-        {
-            Check.NotNull(entityType, nameof(entityType));
+            => GetCounts(entityType).ShadowCount;
 
-            return entityType.GetProperties().Count(p => p.IsShadowProperty);
+        public static int NavigationCount([NotNull] this IEntityType entityType)
+            => GetCounts(entityType).NavigationCount;
+
+        public static int PropertyCount([NotNull] this IEntityType entityType)
+            => GetCounts(entityType).PropertyCount;
+
+        public static PropertyCounts GetCounts([NotNull] this IEntityType entityType)
+        {
+            var countsAccessor = entityType as IPropertyCountsAccessor;
+
+            return countsAccessor != null
+                ? countsAccessor.Counts
+                : entityType.CalculateCounts();
+        }
+
+        public static PropertyCounts CalculateCounts([NotNull] this IEntityType entityType)
+        {
+            var properties = entityType.GetDeclaredProperties().ToList();
+
+            var propertyCount = properties.Count();
+            var navigationCount = entityType.GetDeclaredNavigations().Count();
+            var originalValueCount = properties.Count(p => p.RequiresOriginalValue());
+            var shadowCount = properties.Count(p => p.IsShadowProperty);
+            var relationshipCount = navigationCount + properties.Count(p => p.IsKeyOrForeignKey());
+            var storeGeneratedCount = properties.Count(p => p.MayBeStoreGenerated());
+
+            var baseCounts = entityType.BaseType?.CalculateCounts();
+
+            return baseCounts == null
+                ? new PropertyCounts(
+                    propertyCount,
+                    navigationCount,
+                    originalValueCount,
+                    shadowCount,
+                    relationshipCount,
+                    storeGeneratedCount)
+                : new PropertyCounts(
+                    baseCounts.PropertyCount + propertyCount,
+                    baseCounts.NavigationCount + navigationCount,
+                    baseCounts.OriginalValueCount + originalValueCount,
+                    baseCounts.ShadowCount + shadowCount,
+                    baseCounts.RelationshipCount + relationshipCount,
+                    baseCounts.StoreGeneratedCount + storeGeneratedCount);
+        }
+
+        public static Func<InternalEntityEntry, ISnapshot> GetRelationshipSnapshotFactory([NotNull] this IEntityType entityType)
+        {
+            var source = entityType as ISnapshotFactorySource;
+
+            return source != null
+                ? source.RelationshipSnapshotFactory
+                : new RelationshipSnapshotFactoryFactory().Create(entityType);
+        }
+
+        public static Func<InternalEntityEntry, ISnapshot> GetOriginalValuesFactory([NotNull] this IEntityType entityType)
+        {
+            var source = entityType as ISnapshotFactorySource;
+
+            return source != null
+                ? source.OriginalValuesFactory
+                : new OriginalValuesFactoryFactory().Create(entityType);
+        }
+
+        public static Func<ValueBuffer, ISnapshot> GetShadowValuesFactory([NotNull] this IEntityType entityType)
+        {
+            var source = entityType as ISnapshotFactorySource;
+
+            return source != null
+                ? source.ShadowValuesFactory
+                : new ShadowValuesFactoryFactory().Create(entityType);
+        }
+
+        public static Func<ISnapshot> GetEmptyShadowValuesFactory([NotNull] this IEntityType entityType)
+        {
+            var source = entityType as ISnapshotFactorySource;
+
+            return source != null
+                ? source.EmptyShadowValuesFactory
+                : new EmptyShadowValuesFactoryFactory().CreateEmpty(entityType);
         }
 
         public static bool HasPropertyChangingNotifications([NotNull] this IEntityType entityType)
         {
             Check.NotNull(entityType, nameof(entityType));
 
-            return entityType.ClrType == null
+            return (entityType.ClrType == null)
                    || typeof(INotifyPropertyChanging).GetTypeInfo().IsAssignableFrom(entityType.ClrType.GetTypeInfo());
         }
 
@@ -97,7 +170,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         {
             Check.NotNull(entityType, nameof(entityType));
 
-            return entityType.ClrType == null
+            return (entityType.ClrType == null)
                    || typeof(INotifyPropertyChanged).GetTypeInfo().IsAssignableFrom(entityType.ClrType.GetTypeInfo());
         }
 

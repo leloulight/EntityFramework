@@ -8,6 +8,7 @@ using Xunit;
 
 namespace EntityFramework.Microbenchmarks.EF6.UpdatePipeline
 {
+    [SqlServerRequired]
     public class SimpleUpdatePipelineTests : IClassFixture<SimpleUpdatePipelineTests.SimpleUpdatePipelineFixture>
     {
         private readonly SimpleUpdatePipelineFixture _fixture;
@@ -110,7 +111,8 @@ namespace EntityFramework.Microbenchmarks.EF6.UpdatePipeline
         {
             public SimpleUpdatePipelineFixture()
                 : base("Perf_UpdatePipeline_Simple_EF6", 0, 1000, 0, 0)
-            { }
+            {
+            }
         }
     }
 }

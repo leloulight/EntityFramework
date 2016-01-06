@@ -34,7 +34,7 @@ namespace Microsoft.Data.Entity.Utilities
         }
     }
 
-    internal partial class ImplyGeneric<T1, T2>
+    internal class ImplyGeneric<T1, T2>
     {
         public Func<T1, T2> Func1;
         public Func<T2, T1> Func2;
@@ -44,7 +44,7 @@ namespace Microsoft.Data.Entity.Utilities
     {
         public void ImplyMethods()
         {
-            QueryMethodProvider._GroupJoin<T1, T2, T3, T4>(null, null, null, null, null);
+            QueryMethodProvider._GroupJoin<T1, T2, T3, T4>(null, null, null, null, null, null);
         }
     }
 }

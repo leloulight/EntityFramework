@@ -23,11 +23,8 @@ namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests.ReverseEngineer
     {
         protected override string ProviderName => "EntityFramework.MicrosoftSqlServer.Design";
 
-        protected override void ConfigureDesignTimeServices(IServiceCollection services)
-        {
-            base.ConfigureDesignTimeServices(services);
-            new SqlServerDesignTimeServices().ConfigureDesignTimeServices(services);
-        }
+        protected override void ConfigureDesignTimeServices(IServiceCollection services) 
+            => new SqlServerDesignTimeServices().ConfigureDesignTimeServices(services);
 
         public virtual string TestNamespace => "E2ETest.Namespace";
         public virtual string TestProjectDir => Path.Combine("E2ETest", "Output");
@@ -49,7 +46,7 @@ namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests.ReverseEngineer
                 "OneToOneFKToUniqueKeyPrincipal",
                 "ReferredToByTableWithUnmappablePrimaryKeyColumn",
                 "TableWithUnmappablePrimaryKeyColumn",
-                "SelfReferencing",
+                "selfreferencing",
             });
 
         public SqlServerE2ETests(SqlServerE2EFixture fixture, ITestOutputHelper output)
@@ -122,7 +119,7 @@ namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests.ReverseEngineer
 
             var filePaths = Generator.GenerateAsync(configuration).GetAwaiter().GetResult();
 
-            var actualFileSet = new FileSet(InMemoryFiles, Path.Combine(TestProjectDir, TestSubDir))
+            var actualFileSet = new FileSet(InMemoryFiles, Path.GetFullPath(Path.Combine(TestProjectDir, TestSubDir)))
             {
                 Files = Enumerable.Repeat(filePaths.ContextFile, 1).Concat(filePaths.EntityTypeFiles).Select(Path.GetFileName).ToList()
             };
@@ -145,6 +142,7 @@ namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests.ReverseEngineer
                             RelationalDesignStrings.CannotFindTypeMappingForColumn("dbo.AllDataTypes.hierarchyidColumn", "hierarchyid"),
                             RelationalDesignStrings.CannotFindTypeMappingForColumn("dbo.AllDataTypes.sql_variantColumn", "sql_variant"),
                             RelationalDesignStrings.CannotFindTypeMappingForColumn("dbo.AllDataTypes.xmlColumn", "xml"),
+                            RelationalDesignStrings.UnableToScaffoldIndexMissingProperty("IX_UnscaffoldableIndex"),
                             SqlServerDesignStrings.DataTypeDoesNotAllowSqlServerIdentityStrategy("dbo.PropertyConfiguration.PropertyConfigurationID","tinyint"),
                             RelationalDesignStrings.CannotFindTypeMappingForColumn("dbo.TableWithUnmappablePrimaryKeyColumn.TableWithUnmappablePrimaryKeyColumnID", "hierarchyid"),
                             RelationalDesignStrings.PrimaryKeyErrorPropertyNotFound("dbo.TableWithUnmappablePrimaryKeyColumn"),
@@ -171,7 +169,7 @@ namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests.ReverseEngineer
 
             var filePaths = Generator.GenerateAsync(configuration).GetAwaiter().GetResult();
 
-            var actualFileSet = new FileSet(InMemoryFiles, TestProjectDir)
+            var actualFileSet = new FileSet(InMemoryFiles, Path.GetFullPath(TestProjectDir))
             {
                 Files = Enumerable.Repeat(filePaths.ContextFile, 1).Concat(filePaths.EntityTypeFiles).Select(Path.GetFileName).ToList()
             };
@@ -193,6 +191,7 @@ namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests.ReverseEngineer
                             RelationalDesignStrings.CannotFindTypeMappingForColumn("dbo.AllDataTypes.hierarchyidColumn", "hierarchyid"),
                             RelationalDesignStrings.CannotFindTypeMappingForColumn("dbo.AllDataTypes.sql_variantColumn", "sql_variant"),
                             RelationalDesignStrings.CannotFindTypeMappingForColumn("dbo.AllDataTypes.xmlColumn", "xml"),
+                            RelationalDesignStrings.UnableToScaffoldIndexMissingProperty("IX_UnscaffoldableIndex"),
                             SqlServerDesignStrings.DataTypeDoesNotAllowSqlServerIdentityStrategy("dbo.PropertyConfiguration.PropertyConfigurationID","tinyint"),
                             RelationalDesignStrings.CannotFindTypeMappingForColumn("dbo.TableWithUnmappablePrimaryKeyColumn.TableWithUnmappablePrimaryKeyColumnID", "hierarchyid"),
                             RelationalDesignStrings.PrimaryKeyErrorPropertyNotFound("dbo.TableWithUnmappablePrimaryKeyColumn"),
@@ -201,6 +200,77 @@ namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests.ReverseEngineer
             });
             AssertEqualFileContents(expectedFileSet, actualFileSet);
             AssertCompile(actualFileSet);
+        }
+
+        [ConditionalFact]
+        [SqlServerCondition(SqlServerCondition.SupportsOffset)]
+        public void Sequences()
+        {
+            using (var scratch = SqlServerTestStore.CreateScratch())
+            {
+                scratch.ExecuteNonQuery(@"
+CREATE SEQUENCE CountByTwo
+    START WITH 1
+    INCREMENT BY 2;
+
+CREATE SEQUENCE CyclicalCountByThree
+    START WITH 6
+    INCREMENT BY 3
+    MAXVALUE 27
+    MINVALUE 0
+    CYCLE;
+
+CREATE SEQUENCE TinyIntSequence
+    AS tinyint
+    START WITH 1;
+
+CREATE SEQUENCE SmallIntSequence
+    AS smallint
+    START WITH 1;
+
+CREATE SEQUENCE IntSequence
+    AS int
+    START WITH 1;
+
+CREATE SEQUENCE DecimalSequence
+    AS decimal;
+
+CREATE SEQUENCE NumericSequence
+    AS numeric;");
+
+                var configuration = new ReverseEngineeringConfiguration
+                {
+                    ConnectionString = scratch.Connection.ConnectionString,
+                    ProjectPath = TestProjectDir + Path.DirectorySeparatorChar,
+                    ProjectRootNamespace = TestNamespace,
+                    ContextClassName = "SequenceContext",
+                };
+                var expectedFileSet = new FileSet(new FileSystemFileService(),
+                    Path.Combine("ReverseEngineering", "ExpectedResults"),
+                    contents => contents.Replace("{{connectionString}}", scratch.Connection.ConnectionString))
+                {
+                    Files = new List<string> { "SequenceContext.expected" }
+                };
+
+                var filePaths = Generator.GenerateAsync(configuration).GetAwaiter().GetResult();
+
+                var actualFileSet = new FileSet(InMemoryFiles, Path.GetFullPath(TestProjectDir))
+                {
+                    Files = new[] { filePaths.ContextFile }.Concat(filePaths.EntityTypeFiles).Select(Path.GetFileName).ToList()
+                };
+
+                AssertLog(new LoggerMessages
+                {
+                    Warn =
+                    {
+                        RelationalDesignStrings.BadSequenceType("DecimalSequence", "decimal"),
+                        RelationalDesignStrings.BadSequenceType("NumericSequence", "numeric")
+                    }
+                });
+
+                AssertEqualFileContents(expectedFileSet, actualFileSet);
+                AssertCompile(actualFileSet);
+            }
         }
     }
 }

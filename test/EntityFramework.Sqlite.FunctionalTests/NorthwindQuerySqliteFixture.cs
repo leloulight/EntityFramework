@@ -28,12 +28,12 @@ namespace Microsoft.Data.Entity.Sqlite.FunctionalTests
                     .AddSqlite()
                     .ServiceCollection()
                     .AddSingleton(TestSqliteModelSource.GetFactory(OnModelCreating))
-                    .AddInstance<ILoggerFactory>(_testSqlLoggerFactory)
+                    .AddSingleton<ILoggerFactory>(_testSqlLoggerFactory)
                     .BuildServiceProvider();
 
             _options = BuildOptions();
 
-            _serviceProvider.GetRequiredService<ILoggerFactory>().MinimumLevel = LogLevel.Debug;
+            _serviceProvider.GetRequiredService<ILoggerFactory>();
         }
 
         protected DbContextOptions BuildOptions()

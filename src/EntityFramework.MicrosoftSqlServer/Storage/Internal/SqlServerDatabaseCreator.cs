@@ -17,21 +17,21 @@ namespace Microsoft.Data.Entity.Storage.Internal
     {
         private readonly ISqlServerConnection _connection;
         private readonly IMigrationsSqlGenerator _migrationsSqlGenerator;
-        private readonly ISqlCommandBuilder _sqlCommandBuilder;
+        private readonly IRawSqlCommandBuilder _rawSqlCommandBuilder;
 
         public SqlServerDatabaseCreator(
             [NotNull] ISqlServerConnection connection,
             [NotNull] IMigrationsModelDiffer modelDiffer,
             [NotNull] IMigrationsSqlGenerator migrationsSqlGenerator,
             [NotNull] IModel model,
-            [NotNull] ISqlCommandBuilder sqlCommandBuilder)
+            [NotNull] IRawSqlCommandBuilder rawSqlCommandBuilder)
             : base(model, connection, modelDiffer, migrationsSqlGenerator)
         {
-            Check.NotNull(sqlCommandBuilder, nameof(sqlCommandBuilder));
+            Check.NotNull(rawSqlCommandBuilder, nameof(rawSqlCommandBuilder));
 
             _connection = connection;
             _migrationsSqlGenerator = migrationsSqlGenerator;
-            _sqlCommandBuilder = sqlCommandBuilder;
+            _rawSqlCommandBuilder = rawSqlCommandBuilder;
         }
 
         public override void Create()
@@ -62,10 +62,10 @@ namespace Microsoft.Data.Entity.Storage.Internal
             => (int)CreateHasTablesCommand().ExecuteScalar(_connection) != 0;
 
         protected override async Task<bool> HasTablesAsync(CancellationToken cancellationToken = default(CancellationToken))
-            => (int)(await CreateHasTablesCommand().ExecuteScalarAsync(_connection, cancellationToken)) != 0;
+            => (int)await CreateHasTablesCommand().ExecuteScalarAsync(_connection, cancellationToken: cancellationToken) != 0;
 
         private IRelationalCommand CreateHasTablesCommand()
-            => _sqlCommandBuilder
+            => _rawSqlCommandBuilder
                 .Build("IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE') SELECT 1 ELSE SELECT 0");
 
         private IEnumerable<IRelationalCommand> CreateCreateOperations()
@@ -151,8 +151,8 @@ namespace Microsoft.Data.Entity.Storage.Internal
             // And (Number 4060):
             //   System.Data.SqlClient.SqlException: Cannot open database "X" requested by the login. The
             //   login failed.
-            if ((exception.Number == 233 || exception.Number == -2 || exception.Number == 4060)
-                && ++retryCount < 30)
+            if (((exception.Number == 233) || (exception.Number == -2) || (exception.Number == 4060))
+                && (++retryCount < 30))
             {
                 ClearPool();
                 Thread.Sleep(100);

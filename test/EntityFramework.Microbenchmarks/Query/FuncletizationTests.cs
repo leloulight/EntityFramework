@@ -1,7 +1,6 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
 using System.Linq;
 using EntityFramework.Microbenchmarks.Core;
 using EntityFramework.Microbenchmarks.Models.Orders;
@@ -9,6 +8,7 @@ using Xunit;
 
 namespace EntityFramework.Microbenchmarks.Query
 {
+    [SqlServerRequired]
     public class FuncletizationTests : IClassFixture<FuncletizationTests.FuncletizationFixture>
     {
         private readonly FuncletizationFixture _fixture;
@@ -22,7 +22,6 @@ namespace EntityFramework.Microbenchmarks.Query
         [Benchmark]
         public void NewQueryInstance(IMetricCollector collector)
         {
-
             using (var context = _fixture.CreateContext())
             {
                 using (collector.StartCollection())
@@ -90,7 +89,8 @@ namespace EntityFramework.Microbenchmarks.Query
         {
             public FuncletizationFixture()
                 : base("Perf_Query_Funcletization", 100, 0, 0, 0)
-            { }
+            {
+            }
         }
     }
 }

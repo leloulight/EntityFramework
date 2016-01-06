@@ -1,20 +1,21 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
+using System.Linq;
 using EntityFramework.Microbenchmarks.Core;
 using EntityFramework.Microbenchmarks.Core.Models.AdventureWorks;
 using EntityFramework.Microbenchmarks.Core.Models.AdventureWorks.TestHelpers;
 using EntityFramework.Microbenchmarks.Models.AdventureWorks;
 using Microsoft.Data.Entity;
+using Microsoft.Data.Entity.Metadata.Conventions;
 using Microsoft.Data.Entity.Metadata.Conventions.Internal;
-using System;
-using System.Linq;
 using Microsoft.Data.Entity.Storage.Internal;
 using Xunit;
 
 namespace EntityFramework.Microbenchmarks
 {
-    public partial class InitializationTests : IClassFixture<AdventureWorksFixture>
+    public class InitializationTests : IClassFixture<AdventureWorksFixture>
     {
         [Benchmark]
 #if !DNXCORE50 && !DNX451
@@ -25,8 +26,9 @@ namespace EntityFramework.Microbenchmarks
         {
             RunColdStartEnabledTest(cold, c => c.CreateAndDisposeUnusedContext(collector, count));
         }
-
-        [AdventureWorksDatabaseBenchmark]
+        
+        [Benchmark]
+        [AdventureWorksDatabaseRequired]
 #if !DNXCORE50 && !DNX451
         [BenchmarkVariation("Cold (1 instance)", true, 1)]
 #endif
@@ -35,8 +37,9 @@ namespace EntityFramework.Microbenchmarks
         {
             RunColdStartEnabledTest(cold, c => c.InitializeAndQuery_AdventureWorks(collector, count));
         }
-
-        [AdventureWorksDatabaseBenchmark]
+        
+        [Benchmark]
+        [AdventureWorksDatabaseRequired]
 #if !DNXCORE50 && !DNX451
         [BenchmarkVariation("Cold (1 instance)", true, 1)]
 #endif
@@ -50,11 +53,8 @@ namespace EntityFramework.Microbenchmarks
         public void BuildModel_AdventureWorks(IMetricCollector collector)
         {
             collector.StartCollection();
-
-            var conventions = new SqlServerConventionSetBuilder(new SqlServerTypeMapper())
-                .AddConventions(new CoreConventionSetBuilder().CreateConventionSet());
-
-            var builder = new ModelBuilder(conventions);
+            
+            var builder = new ModelBuilder(SqlServerConventionSetBuilder.Build());
             AdventureWorksContext.ConfigureModel(builder);
 
             var model = builder.Model;
@@ -96,7 +96,7 @@ namespace EntityFramework.Microbenchmarks
             {
                 using (collector.StartCollection())
                 {
-                    for (int i = 0; i < count; i++)
+                    for (var i = 0; i < count; i++)
                     {
                         using (var context = AdventureWorksFixture.CreateContext())
                         {
@@ -109,7 +109,7 @@ namespace EntityFramework.Microbenchmarks
             {
                 using (collector.StartCollection())
                 {
-                    for (int i = 0; i < count; i++)
+                    for (var i = 0; i < count; i++)
                     {
                         using (var context = AdventureWorksFixture.CreateContext())
                         {
@@ -123,7 +123,7 @@ namespace EntityFramework.Microbenchmarks
             {
                 using (collector.StartCollection())
                 {
-                    for (int i = 0; i < count; i++)
+                    for (var i = 0; i < count; i++)
                     {
                         using (var context = AdventureWorksFixture.CreateContext())
                         {

@@ -21,7 +21,7 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// More than one DbContext was found. Specify which one to use.
+        /// More than one DbContext was found. Specify which one to use. Use the '-Context' parameter for PowerShell commands and the '--context' parameter for DNX commands.
         /// </summary>
         public static string MultipleContexts
         {
@@ -266,6 +266,46 @@ namespace Microsoft.Data.Entity.Internal
         public static string ForeignMigrations([CanBeNull] object migrationsNamespace)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("ForeignMigrations", "migrationsNamespace"), migrationsNamespace);
+        }
+
+        /// <summary>
+        /// ConnectionString is required to generate code.
+        /// </summary>
+        public static string ConnectionStringRequired
+        {
+            get { return GetString("ConnectionStringRequired"); }
+        }
+
+        /// <summary>
+        /// The context class name passed in, {contextClassName}, is not a valid C# identifier.
+        /// </summary>
+        public static string ContextClassNotValidCSharpIdentifier([CanBeNull] object contextClassName)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ContextClassNotValidCSharpIdentifier", "contextClassName"), contextClassName);
+        }
+
+        /// <summary>
+        /// ProjectPath is required to generate code.
+        /// </summary>
+        public static string ProjectPathRequired
+        {
+            get { return GetString("ProjectPathRequired"); }
+        }
+
+        /// <summary>
+        /// Root namespace of the project is required to generate code.
+        /// </summary>
+        public static string RootNamespaceRequired
+        {
+            get { return GetString("RootNamespaceRequired"); }
+        }
+
+        /// <summary>
+        /// Your target project '{assembly}' doesn't match your migrations assembly '{migrationsAssembly}'. Change your target project to the migrations project by using the Package Manager Console's Default project drop-down list or by using the '--targetProject' option for DNX commands. Change your migrations assembly by using DbContextOptionsBuilder. E.g. options.UseSqlServer().MigrationsAssembly("{assembly}")
+        /// </summary>
+        public static string MigrationsAssemblyMismatch([CanBeNull] object assembly, [CanBeNull] object migrationsAssembly)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("MigrationsAssemblyMismatch", "assembly", "migrationsAssembly"), assembly, migrationsAssembly);
         }
 
         private static string GetString(string name, params string[] formatterNames)

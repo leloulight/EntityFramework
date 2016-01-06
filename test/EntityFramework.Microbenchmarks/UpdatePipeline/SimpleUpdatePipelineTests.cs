@@ -3,13 +3,12 @@
 
 using System.Linq;
 using EntityFramework.Microbenchmarks.Core;
-using EntityFramework.Microbenchmarks.Core.Models.Orders;
 using EntityFramework.Microbenchmarks.Models.Orders;
-using Microsoft.Data.Entity;
 using Xunit;
 
 namespace EntityFramework.Microbenchmarks.UpdatePipeline
 {
+    [SqlServerRequired]
     public class SimpleUpdatePipelineTests : IClassFixture<SimpleUpdatePipelineTests.SimpleUpdatePipelineFixture>
     {
         private readonly SimpleUpdatePipelineFixture _fixture;
@@ -120,7 +119,13 @@ namespace EntityFramework.Microbenchmarks.UpdatePipeline
         {
             public SimpleUpdatePipelineFixture()
                 : base("Perf_UpdatePipeline_Simple", 0, 1000, 0, 0)
-            { }
+            {
+            }
+
+            public OrdersContext CreateContext(bool disableBatching)
+            {
+                return new OrdersContext(ConnectionString, disableBatching);
+            }
         }
     }
 }

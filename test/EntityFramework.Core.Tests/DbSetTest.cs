@@ -404,15 +404,17 @@ namespace Microsoft.Data.Entity.Tests
             }
         }
 
+#if NET451 || DNX451
         [Fact]
         public void Throws_when_using_with_IListSource()
         {
             using (var context = new EarlyLearningCenter())
             {
                 Assert.Equal(CoreStrings.DataBindingWithIListSource,
-                    Assert.Throws<NotSupportedException>(() => ((IListSource) context.Gus).GetList()).Message);
+                    Assert.Throws<NotSupportedException>(() => ((IListSource)context.Gus).GetList()).Message);
             }
         }
+#endif
 
         private class Category
         {

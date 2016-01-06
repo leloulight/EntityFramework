@@ -4,14 +4,15 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.Northwind;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Microsoft.Data.Entity.Internal;
-using Microsoft.Data.Entity.Utilities;
 using Xunit;
 
 // ReSharper disable AccessToDisposedClosure
 
 namespace Microsoft.Data.Entity.FunctionalTests
 {
+    [MonoVersionCondition(Min = "4.2.0", SkipReason = "Queries fail on Mono < 4.2.0 due to differences in the implementation of LINQ")]
     public abstract class IncludeAsyncTestBase<TFixture> : IClassFixture<TFixture>
         where TFixture : NorthwindQueryFixtureBase, new()
     {
@@ -22,12 +23,9 @@ namespace Microsoft.Data.Entity.FunctionalTests
 
         protected TFixture Fixture { get; }
 
-        protected NorthwindContext CreateContext()
-        {
-            return Fixture.CreateContext();
-        }
+        protected NorthwindContext CreateContext() => Fixture.CreateContext();
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection()
         {
             using (var context = CreateContext())
@@ -44,7 +42,20 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
+        public virtual async Task Include_closes_reader()
+        {
+            using (var context = CreateContext())
+            {
+                var customer = await context.Set<Customer>().Include(c => c.Orders).FirstOrDefaultAsync();
+                var products = await context.Products.ToListAsync();
+
+                Assert.NotNull(customer);
+                Assert.NotNull(products);
+            }
+        }
+
+        [ConditionalFact]
         public virtual async Task Include_collection_alias_generation()
         {
             using (var context = CreateContext())
@@ -58,7 +69,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_and_reference()
         {
             using (var context = CreateContext())
@@ -73,7 +84,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_as_no_tracking()
         {
             using (var context = CreateContext())
@@ -91,7 +102,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_as_no_tracking2()
         {
             using (var context = CreateContext())
@@ -111,7 +122,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_dependent_already_tracked()
         {
             using (var context = CreateContext())
@@ -135,7 +146,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_dependent_already_tracked_as_no_tracking()
         {
             using (var context = CreateContext())
@@ -160,15 +171,15 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_on_additional_from_clause()
         {
             using (var context = CreateContext())
             {
                 var customers
                     = await (from c1 in context.Set<Customer>().OrderBy(c => c.CustomerID).Take(5)
-                        from c2 in context.Set<Customer>().Include(c => c.Orders)
-                        select c2)
+                             from c2 in context.Set<Customer>().Include(c => c.Orders)
+                             select c2)
                         .ToListAsync();
 
                 Assert.Equal(455, customers.Count);
@@ -178,17 +189,17 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_on_additional_from_clause_with_filter()
         {
             using (var context = CreateContext())
             {
                 var customers
                     = await (from c1 in context.Set<Customer>()
-                        from c2 in context.Set<Customer>()
-                            .Include(c => c.Orders)
-                            .Where(c => c.CustomerID == "ALFKI")
-                        select c2)
+                             from c2 in context.Set<Customer>()
+                                 .Include(c => c.Orders)
+                                 .Where(c => c.CustomerID == "ALFKI")
+                             select c2)
                         .ToListAsync();
 
                 Assert.Equal(91, customers.Count);
@@ -198,15 +209,15 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_on_additional_from_clause2()
         {
             using (var context = CreateContext())
             {
                 var customers
                     = await (from c1 in context.Set<Customer>().OrderBy(c => c.CustomerID).Take(5)
-                        from c2 in context.Set<Customer>().Include(c => c.Orders)
-                        select c1)
+                             from c2 in context.Set<Customer>().Include(c => c.Orders)
+                             select c1)
                         .ToListAsync();
 
                 Assert.Equal(455, customers.Count);
@@ -215,16 +226,16 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_on_join_clause_with_filter()
         {
             using (var context = CreateContext())
             {
                 var customers
                     = await (from c in context.Set<Customer>().Include(c => c.Orders)
-                        join o in context.Set<Order>() on c.CustomerID equals o.CustomerID
-                        where c.CustomerID == "ALFKI"
-                        select c)
+                             join o in context.Set<Order>() on c.CustomerID equals o.CustomerID
+                             where c.CustomerID == "ALFKI"
+                             select c)
                         .ToListAsync();
 
                 Assert.Equal(6, customers.Count);
@@ -234,17 +245,17 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_on_join_clause_with_order_by_and_filter()
         {
             using (var context = CreateContext())
             {
                 var customers
                     = await (from c in context.Set<Customer>().Include(c => c.Orders)
-                        join o in context.Set<Order>() on c.CustomerID equals o.CustomerID
-                        where c.CustomerID == "ALFKI"
-                        orderby c.City
-                        select c)
+                             join o in context.Set<Order>() on c.CustomerID equals o.CustomerID
+                             where c.CustomerID == "ALFKI"
+                             orderby c.City
+                             select c)
                         .ToListAsync();
 
                 Assert.Equal(6, customers.Count);
@@ -254,7 +265,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_order_by_key()
         {
             using (var context = CreateContext())
@@ -272,7 +283,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_order_by_non_key()
         {
             using (var context = CreateContext())
@@ -290,7 +301,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_principal_already_tracked()
         {
             using (var context = CreateContext())
@@ -313,7 +324,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_principal_already_tracked_as_no_tracking()
         {
             using (var context = CreateContext())
@@ -337,7 +348,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_single_or_default_no_result()
         {
             using (var context = CreateContext())
@@ -351,7 +362,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_when_projection()
         {
             using (var context = CreateContext())
@@ -367,7 +378,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_with_filter()
         {
             using (var context = CreateContext())
@@ -385,7 +396,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_with_filter_reordered()
         {
             using (var context = CreateContext())
@@ -403,7 +414,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_duplicate_collection()
         {
             using (var context = CreateContext())
@@ -413,12 +424,12 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         .Include(c => c.Orders)
                         .OrderBy(c => c.CustomerID)
                         .Take(2)
-                        from c2 in context.Set<Customer>()
-                            .Include(c => c.Orders)
-                            .OrderBy(c => c.CustomerID)
-                            .Skip(2)
-                            .Take(2)
-                        select new { c1, c2 })
+                             from c2 in context.Set<Customer>()
+                                 .Include(c => c.Orders)
+                                 .OrderBy(c => c.CustomerID)
+                                 .Skip(2)
+                                 .Take(2)
+                             select new { c1, c2 })
                         .ToListAsync();
 
                 Assert.Equal(4, customers.Count);
@@ -430,7 +441,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_duplicate_collection_result_operator()
         {
             using (var context = CreateContext())
@@ -440,12 +451,12 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         .Include(c => c.Orders)
                         .OrderBy(c => c.CustomerID)
                         .Take(2)
-                        from c2 in context.Set<Customer>()
-                            .Include(c => c.Orders)
-                            .OrderBy(c => c.CustomerID)
-                            .Skip(2)
-                            .Take(2)
-                        select new { c1, c2 })
+                             from c2 in context.Set<Customer>()
+                                 .Include(c => c.Orders)
+                                 .OrderBy(c => c.CustomerID)
+                                 .Skip(2)
+                                 .Take(2)
+                             select new { c1, c2 })
                         .Take(1)
                         .ToListAsync();
 
@@ -458,7 +469,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_duplicate_collection_result_operator2()
         {
             using (var context = CreateContext())
@@ -468,11 +479,11 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         .Include(c => c.Orders)
                         .OrderBy(c => c.CustomerID)
                         .Take(2)
-                        from c2 in context.Set<Customer>()
-                            .OrderBy(c => c.CustomerID)
-                            .Skip(2)
-                            .Take(2)
-                        select new { c1, c2 })
+                             from c2 in context.Set<Customer>()
+                                 .OrderBy(c => c.CustomerID)
+                                 .Skip(2)
+                                 .Take(2)
+                             select new { c1, c2 })
                         .Take(1)
                         .ToListAsync();
 
@@ -484,7 +495,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_duplicate_reference()
         {
             using (var context = CreateContext())
@@ -494,12 +505,12 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         .Include(o => o.Customer)
                         .OrderBy(o => o.CustomerID)
                         .Take(2)
-                        from o2 in context.Set<Order>()
-                            .Include(o => o.Customer)
-                            .OrderBy(o => o.CustomerID)
-                            .Skip(2)
-                            .Take(2)
-                        select new { o1, o2 })
+                             from o2 in context.Set<Order>()
+                                 .Include(o => o.Customer)
+                                 .OrderBy(o => o.CustomerID)
+                                 .Skip(2)
+                                 .Take(2)
+                             select new { o1, o2 })
                         .ToListAsync();
 
                 Assert.Equal(4, orders.Count);
@@ -511,7 +522,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_duplicate_reference2()
         {
             using (var context = CreateContext())
@@ -521,11 +532,11 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         .Include(o => o.Customer)
                         .OrderBy(o => o.OrderID)
                         .Take(2)
-                        from o2 in context.Set<Order>()
-                            .OrderBy(o => o.OrderID)
-                            .Skip(2)
-                            .Take(2)
-                        select new { o1, o2 })
+                             from o2 in context.Set<Order>()
+                                 .OrderBy(o => o.OrderID)
+                                 .Skip(2)
+                                 .Take(2)
+                             select new { o1, o2 })
                         .ToListAsync();
 
                 Assert.Equal(4, orders.Count);
@@ -536,7 +547,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_duplicate_reference3()
         {
             using (var context = CreateContext())
@@ -545,12 +556,12 @@ namespace Microsoft.Data.Entity.FunctionalTests
                     = await (from o1 in context.Set<Order>()
                         .OrderBy(o => o.OrderID)
                         .Take(2)
-                        from o2 in context.Set<Order>()
-                            .OrderBy(o => o.OrderID)
-                            .Include(o => o.Customer)
-                            .Skip(2)
-                            .Take(2)
-                        select new { o1, o2 })
+                             from o2 in context.Set<Order>()
+                                 .OrderBy(o => o.OrderID)
+                                 .Include(o => o.Customer)
+                                 .Skip(2)
+                                 .Take(2)
+                             select new { o1, o2 })
                         .ToListAsync();
 
                 Assert.Equal(4, orders.Count);
@@ -561,7 +572,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multi_level_reference_and_collection_predicate()
         {
             using (var context = CreateContext())
@@ -576,7 +587,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multi_level_collection_and_then_include_reference_predicate()
         {
             using (var context = CreateContext())
@@ -592,7 +603,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references()
         {
             using (var context = CreateContext())
@@ -611,7 +622,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references_and_collection_multi_level()
         {
             using (var context = CreateContext())
@@ -628,7 +639,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references_and_collection_multi_level_reverse()
         {
             using (var context = CreateContext())
@@ -645,7 +656,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references_multi_level()
         {
             using (var context = CreateContext())
@@ -661,7 +672,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references_multi_level_reverse()
         {
             using (var context = CreateContext())
@@ -677,7 +688,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference()
         {
             using (var context = CreateContext())
@@ -694,7 +705,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference_alias_generation()
         {
             using (var context = CreateContext())
@@ -708,7 +719,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference_and_collection()
         {
             using (var context = CreateContext())
@@ -723,7 +734,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference_as_no_tracking()
         {
             using (var context = CreateContext())
@@ -740,7 +751,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference_dependent_already_tracked()
         {
             using (var context = CreateContext())
@@ -763,7 +774,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference_single_or_default_when_no_result()
         {
             using (var context = CreateContext())
@@ -777,7 +788,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference_when_projection()
         {
             using (var context = CreateContext())
@@ -793,7 +804,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference_with_filter()
         {
             using (var context = CreateContext())
@@ -811,7 +822,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_reference_with_filter_reordered()
         {
             using (var context = CreateContext())
@@ -829,7 +840,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_references_and_collection_multi_level()
         {
             using (var context = CreateContext())
@@ -845,7 +856,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_then_include_collection()
         {
             using (var context = CreateContext())
@@ -861,7 +872,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_then_include_collection_then_include_reference()
         {
             using (var context = CreateContext())
@@ -877,7 +888,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_collection_then_include_collection_predicate()
         {
             using (var context = CreateContext())
@@ -893,7 +904,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_references_and_collection_multi_level_predicate()
         {
             using (var context = CreateContext())
@@ -910,7 +921,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_references_multi_level()
         {
             using (var context = CreateContext())
@@ -925,7 +936,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multi_level_reference_then_include_collection_predicate()
         {
             using (var context = CreateContext())
@@ -940,7 +951,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references_then_include_collection_multi_level()
         {
             using (var context = CreateContext())
@@ -957,7 +968,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references_then_include_collection_multi_level_reverse()
         {
             using (var context = CreateContext())
@@ -974,7 +985,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references_then_include_multi_level()
         {
             using (var context = CreateContext())
@@ -990,7 +1001,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_multiple_references_then_include_multi_level_reverse()
         {
             using (var context = CreateContext())
@@ -1006,7 +1017,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_references_then_include_collection_multi_level()
         {
             using (var context = CreateContext())
@@ -1022,7 +1033,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_references_then_include_collection_multi_level_predicate()
         {
             using (var context = CreateContext())
@@ -1039,7 +1050,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual async Task Include_references_then_include_multi_level()
         {
             using (var context = CreateContext())

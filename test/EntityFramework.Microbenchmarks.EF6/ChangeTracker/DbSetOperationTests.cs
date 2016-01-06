@@ -3,12 +3,12 @@
 
 using System.Data.Entity;
 using EntityFramework.Microbenchmarks.Core;
-using EntityFramework.Microbenchmarks.Core.Models.Orders;
 using EntityFramework.Microbenchmarks.EF6.Models.Orders;
 using Xunit;
 
 namespace EntityFramework.Microbenchmarks.EF6.ChangeTracker
 {
+    [SqlServerRequired]
     public class DbSetOperationTests : IClassFixture<DbSetOperationTests.DbSetOperationFixture>
     {
         private readonly DbSetOperationFixture _fixture;
@@ -151,7 +151,8 @@ namespace EntityFramework.Microbenchmarks.EF6.ChangeTracker
         {
             public DbSetOperationFixture()
                 : base("Perf_ChangeTracker_DbSetOperation_EF6", 0, 0, 0, 0)
-            { }
+            {
+            }
         }
     }
 }

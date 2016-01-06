@@ -91,6 +91,13 @@ namespace Microsoft.Data.Entity.Migrations.Design
                 migrationNamespace = GetNamespace(lastMigration.Value?.AsType(), migrationNamespace);
             }
 
+            var sanitizedContextName = _contextType.Name;
+            var genericMarkIndex = sanitizedContextName.IndexOf('`');
+            if (genericMarkIndex != -1)
+            {
+                sanitizedContextName = sanitizedContextName.Substring(0, genericMarkIndex);
+            }
+
             if (ContainsForeignMigrations(migrationNamespace))
             {
                 if (subNamespaceDefaulted)
@@ -99,14 +106,14 @@ namespace Microsoft.Data.Entity.Migrations.Design
                         .Append(rootNamespace)
                         .Append(".Migrations.");
 
-                    if (_contextType.Name.EndsWith("Context"))
+                    if (sanitizedContextName.EndsWith("Context"))
                     {
-                        builder.Append(_contextType.Name.Substring(0, _contextType.Name.Length - 7));
+                        builder.Append(sanitizedContextName.Substring(0, sanitizedContextName.Length - 7));
                     }
                     else
                     {
                         builder
-                            .Append(_contextType.Name)
+                            .Append(sanitizedContextName)
                             .Append("Migrations");
                     }
 
@@ -127,13 +134,13 @@ namespace Microsoft.Data.Entity.Migrations.Design
             var migrationId = _idGenerator.GenerateId(migrationName);
             var modelSnapshotNamespace = GetNamespace(modelSnapshot?.GetType(), migrationNamespace);
 
-            var modelSnapshotName = _contextType.Name + "ModelSnapshot";
+            var modelSnapshotName = sanitizedContextName + "ModelSnapshot";
             if (modelSnapshot != null)
             {
                 var lastModelSnapshotName = modelSnapshot.GetType().Name;
                 if (lastModelSnapshotName != modelSnapshotName)
                 {
-                    _logger.Value.LogVerbose(CommandsStrings.ReusingSnapshotName(lastModelSnapshotName));
+                    _logger.Value.LogDebug(CommandsStrings.ReusingSnapshotName(lastModelSnapshotName));
 
                     modelSnapshotName = lastModelSnapshotName;
                 }
@@ -235,7 +242,7 @@ namespace Microsoft.Data.Entity.Migrations.Design
                     }
                     else
                     {
-                        _logger.Value.LogVerbose(CommandsStrings.NoMigrationMetadataFile(migrationMetadataFileName));
+                        _logger.Value.LogDebug(CommandsStrings.NoMigrationMetadataFile(migrationMetadataFileName));
                     }
 
                     model = migrations.Count > 1
@@ -244,7 +251,7 @@ namespace Microsoft.Data.Entity.Migrations.Design
                 }
                 else
                 {
-                    _logger.Value.LogVerbose(CommandsStrings.ManuallyDeleted);
+                    _logger.Value.LogDebug(CommandsStrings.ManuallyDeleted);
                 }
             }
 
@@ -301,12 +308,12 @@ namespace Microsoft.Data.Entity.Migrations.Design
             var modelSnapshotDirectory = GetDirectory(projectDir, modelSnapshotFileName, migration.SnapshotSubnamespace);
             var modelSnapshotFile = Path.Combine(modelSnapshotDirectory, modelSnapshotFileName);
 
-            _logger.Value.LogVerbose(CommandsStrings.WritingMigration(migrationFile));
+            _logger.Value.LogDebug(CommandsStrings.WritingMigration(migrationFile));
             Directory.CreateDirectory(migrationDirectory);
             File.WriteAllText(migrationFile, migration.MigrationCode);
             File.WriteAllText(migrationMetadataFile, migration.MetadataCode);
 
-            _logger.Value.LogVerbose(CommandsStrings.WritingSnapshot(modelSnapshotFile));
+            _logger.Value.LogDebug(CommandsStrings.WritingSnapshot(modelSnapshotFile));
             Directory.CreateDirectory(modelSnapshotDirectory);
             File.WriteAllText(modelSnapshotFile, migration.SnapshotCode);
 
@@ -325,7 +332,7 @@ namespace Microsoft.Data.Entity.Migrations.Design
                 var lastNamespace = siblingType.Namespace;
                 if (lastNamespace != defaultNamespace)
                 {
-                    _logger.Value.LogVerbose(CommandsStrings.ReusingNamespace(siblingType.Name));
+                    _logger.Value.LogDebug(CommandsStrings.ReusingNamespace(siblingType.Name));
 
                     return lastNamespace;
                 }
@@ -352,7 +359,7 @@ namespace Microsoft.Data.Entity.Migrations.Design
                     var lastDirectory = Path.GetDirectoryName(siblingPath);
                     if (!defaultDirectory.Equals(lastDirectory, StringComparison.OrdinalIgnoreCase))
                     {
-                        _logger.Value.LogVerbose(CommandsStrings.ReusingDirectory(siblingFileName));
+                        _logger.Value.LogDebug(CommandsStrings.ReusingDirectory(siblingFileName));
 
                         return lastDirectory;
                     }

@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -27,7 +27,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;CSPROJ;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -46,6 +46,7 @@
       <Link>Utilities\LoggingExtensions.cs</Link>
     </Compile>
     <Compile Include="Extensions\Internal\InMemoryLoggerExtensions.cs" />
+    <Compile Include="Infrastructure\InMemoryDbContextOptionsBuilder.cs" />
     <Compile Include="Infrastructure\Internal\InMemoryModelSource.cs" />
     <Compile Include="Infrastructure\Internal\InMemoryOptionsExtension.cs" />
     <Compile Include="Infrastructure\InMemoryLoggingEventId.cs" />
@@ -77,12 +78,19 @@
     <Compile Include="Query\Internal\InMemoryQueryModelVisitor.cs" />
     <Compile Include="Query\Internal\InMemoryQueryModelVisitorFactory.cs" />
     <Compile Include="Query\Internal\MaterializerFactory.cs" />
+    <Compile Include="Storage\InMemoryTransactionManager.cs" />
+    <Compile Include="Storage\InMemoryTransaction.cs" />
     <Compile Include="Storage\Internal\IInMemoryDatabase.cs" />
     <Compile Include="Storage\Internal\IInMemoryStore.cs" />
+    <Compile Include="Storage\Internal\IInMemoryTable.cs" />
+    <Compile Include="Storage\Internal\IInMemoryTableFactory.cs" />
     <Compile Include="Storage\Internal\InMemoryDatabase.cs" />
     <Compile Include="Storage\Internal\InMemoryDatabaseCreator.cs" />
     <Compile Include="Storage\Internal\InMemoryDatabaseProviderServices.cs" />
     <Compile Include="Storage\Internal\InMemoryStore.cs" />
+    <Compile Include="Storage\Internal\InMemoryTable.cs" />
+    <Compile Include="Storage\Internal\InMemoryTableFactory.cs" />
+    <Compile Include="Storage\Internal\InMemoryTableSnapshot.cs" />
     <Compile Include="ValueGeneration\Internal\InMemoryIntegerValueGenerator.cs" />
     <Compile Include="ValueGeneration\Internal\InMemoryIntegerValueGeneratorFactory.cs" />
     <Compile Include="ValueGeneration\Internal\InMemoryValueGeneratorCache.cs" />

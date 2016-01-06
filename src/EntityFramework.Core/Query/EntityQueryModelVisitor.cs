@@ -13,9 +13,9 @@ using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Internal;
-using Microsoft.Data.Entity.Query.Annotations;
 using Microsoft.Data.Entity.Query.ExpressionVisitors;
 using Microsoft.Data.Entity.Query.Internal;
+using Microsoft.Data.Entity.Query.ResultOperators.Internal;
 using Microsoft.Data.Entity.Utilities;
 using Remotion.Linq;
 using Remotion.Linq.Clauses;
@@ -33,7 +33,6 @@ namespace Microsoft.Data.Entity.Query
         public static readonly MethodInfo PropertyMethodInfo
             = typeof(EF).GetTypeInfo().GetDeclaredMethod(nameof(EF.Property));
 
-        protected virtual IModel Model { get; }
         private readonly IQueryOptimizer _queryOptimizer;
         private readonly INavigationRewritingExpressionVisitorFactory _navigationRewritingExpressionVisitorFactory;
         private readonly ISubQueryMemberPushDownExpressionVisitor _subQueryMemberPushDownExpressionVisitor;
@@ -58,7 +57,6 @@ namespace Microsoft.Data.Entity.Query
         private bool _blockTaskExpressions = true;
 
         protected EntityQueryModelVisitor(
-            [NotNull] IModel model,
             [NotNull] IQueryOptimizer queryOptimizer,
             [NotNull] INavigationRewritingExpressionVisitorFactory navigationRewritingExpressionVisitorFactory,
             [NotNull] ISubQueryMemberPushDownExpressionVisitor subQueryMemberPushDownExpressionVisitor,
@@ -75,7 +73,6 @@ namespace Microsoft.Data.Entity.Query
             [NotNull] IExpressionPrinter expressionPrinter,
             [NotNull] QueryCompilationContext queryCompilationContext)
         {
-            Check.NotNull(model, nameof(model));
             Check.NotNull(queryOptimizer, nameof(queryOptimizer));
             Check.NotNull(navigationRewritingExpressionVisitorFactory, nameof(navigationRewritingExpressionVisitorFactory));
             Check.NotNull(subQueryMemberPushDownExpressionVisitor, nameof(subQueryMemberPushDownExpressionVisitor));
@@ -92,8 +89,6 @@ namespace Microsoft.Data.Entity.Query
             Check.NotNull(expressionPrinter, nameof(expressionPrinter));
             Check.NotNull(queryCompilationContext, nameof(queryCompilationContext));
 
-            Model = model;
-
             _queryOptimizer = queryOptimizer;
             _navigationRewritingExpressionVisitorFactory = navigationRewritingExpressionVisitorFactory;
             _subQueryMemberPushDownExpressionVisitor = subQueryMemberPushDownExpressionVisitor;
@@ -108,6 +103,8 @@ namespace Microsoft.Data.Entity.Query
             _entityMaterializerSource = entityMaterializerSource;
             _expressionPrinter = expressionPrinter;
             _queryCompilationContext = queryCompilationContext;
+
+            LinqOperatorProvider = queryCompilationContext.LinqOperatorProvider;
         }
 
         public virtual Expression Expression
@@ -136,7 +133,7 @@ namespace Microsoft.Data.Entity.Query
 
         public virtual QueryCompilationContext QueryCompilationContext => _queryCompilationContext;
 
-        public virtual ILinqOperatorProvider LinqOperatorProvider => QueryCompilationContext.LinqOperatorProvider;
+        public virtual ILinqOperatorProvider LinqOperatorProvider { get; private set; }
 
         public virtual Func<QueryContext, IEnumerable<TResult>> CreateQueryExecutor<TResult>([NotNull] QueryModel queryModel)
         {
@@ -145,7 +142,7 @@ namespace Microsoft.Data.Entity.Query
             using (QueryCompilationContext.Logger.BeginScopeImpl(this))
             {
                 QueryCompilationContext.Logger
-                    .LogVerbose(
+                    .LogDebug(
                         CoreLoggingEventId.CompilingQueryModel,
                         () => CoreStrings.LogCompilingQueryModel(queryModel));
 
@@ -179,7 +176,7 @@ namespace Microsoft.Data.Entity.Query
             using (QueryCompilationContext.Logger.BeginScopeImpl(this))
             {
                 QueryCompilationContext.Logger
-                    .LogVerbose(
+                    .LogDebug(
                         CoreLoggingEventId.CompilingQueryModel,
                         () => CoreStrings.LogCompilingQueryModel(queryModel));
 
@@ -214,7 +211,8 @@ namespace Microsoft.Data.Entity.Query
                         .MakeGenericMethod(_expression.Type.GetSequenceType()),
                     _expression,
                     Expression.Constant(QueryCompilationContext.ContextType),
-                    Expression.Constant(QueryCompilationContext.Logger));
+                    Expression.Constant(QueryCompilationContext.Logger),
+                    QueryContextParameter);
         }
 
         protected virtual void ExtractQueryAnnotations([NotNull] QueryModel queryModel)
@@ -237,7 +235,7 @@ namespace Microsoft.Data.Entity.Query
             queryModel.TransformExpressions(_subQueryMemberPushDownExpressionVisitor.Visit);
 
             QueryCompilationContext.Logger
-                .LogVerbose(
+                .LogDebug(
                     CoreLoggingEventId.OptimizedQueryModel,
                     () => CoreStrings.LogOptimizedQueryModel(queryModel));
         }
@@ -289,12 +287,12 @@ namespace Microsoft.Data.Entity.Query
 
             var includeSpecifications
                 = QueryCompilationContext.QueryAnnotations
-                    .OfType<IncludeQueryAnnotation>()
-                    .Select(annotation =>
+                    .OfType<IncludeResultOperator>()
+                    .Select(includeResultOperator =>
                         {
                             var navigationPath
                                 = BindNavigationPathMemberExpression(
-                                    annotation.NavigationPropertyPath,
+                                    includeResultOperator.NavigationPropertyPath,
                                     (ps, _) =>
                                         {
                                             var properties = ps.ToArray();
@@ -303,28 +301,31 @@ namespace Microsoft.Data.Entity.Query
                                             if (properties.Length != navigations.Length)
                                             {
                                                 throw new InvalidOperationException(
-                                                    CoreStrings.IncludeNonBindableExpression(annotation.NavigationPropertyPath));
+                                                    CoreStrings.IncludeNonBindableExpression(
+                                                        includeResultOperator.NavigationPropertyPath));
                                             }
 
                                             return BindChainedNavigations(
                                                 navigations,
-                                                annotation.ChainedNavigationProperties)
+                                                includeResultOperator.ChainedNavigationProperties)
                                                 .ToArray();
                                         });
 
                             if (navigationPath == null)
                             {
                                 throw new InvalidOperationException(
-                                    CoreStrings.IncludeNonBindableExpression(annotation.NavigationPropertyPath));
+                                    CoreStrings.IncludeNonBindableExpression(
+                                        includeResultOperator.NavigationPropertyPath));
                             }
 
                             return new
                             {
-                                specification = new IncludeSpecification(annotation.QuerySource, navigationPath),
+                                specification = new IncludeSpecification(includeResultOperator.QuerySource, navigationPath),
                                 order = string.Concat(navigationPath.Select(n => n.IsCollection() ? "1" : "0"))
                             };
                         })
-                    .OrderByDescending(e => e.order).ThenBy(e => e.specification.NavigationPath.First().IsDependentToPrincipal())
+                    .OrderByDescending(e => e.order)
+                    .ThenBy(e => e.specification.NavigationPath.First().IsDependentToPrincipal())
                     .Select(e => e.specification)
                     .ToList();
 
@@ -357,7 +358,7 @@ namespace Microsoft.Data.Entity.Query
                                 Expression.Parameter(queryModel.SelectClause.Selector.Type, "result"));
 
                     QueryCompilationContext.Logger
-                        .LogVerbose(
+                        .LogDebug(
                             CoreLoggingEventId.IncludingNavigation,
                             () => CoreStrings.LogIncludingNavigation(includeSpecification.NavigationPath.Join(".")));
 
@@ -386,7 +387,7 @@ namespace Microsoft.Data.Entity.Query
                     var navigation in
                         from propertyInfo in chainedNavigationProperties
                         // ReSharper disable once AssignNullToNotNullAttribute
-                        let entityType = Model.FindEntityType(propertyInfo.DeclaringType)
+                        let entityType = QueryCompilationContext.Model.FindEntityType(propertyInfo.DeclaringType)
                         select entityType?.FindNavigation(propertyInfo.Name))
                 {
                     if (navigation == null)
@@ -408,7 +409,6 @@ namespace Microsoft.Data.Entity.Query
             bool querySourceRequiresTracking)
         {
             // template method
-
             throw new NotImplementedException(CoreStrings.IncludeNotImplemented);
         }
 
@@ -419,17 +419,14 @@ namespace Microsoft.Data.Entity.Query
 
             var lastTrackingModifier
                 = QueryCompilationContext.QueryAnnotations
-                    .OfType<QueryAnnotation>()
-                    .LastOrDefault(
-                        qa => qa.IsCallTo(EntityFrameworkQueryableExtensions.AsNoTrackingMethodInfo)
-                              || qa.IsCallTo(EntityFrameworkQueryableExtensions.AsTrackingMethodInfo));
+                    .OfType<TrackingResultOperator>()
+                    .LastOrDefault();
 
             if (queryModel.GetOutputDataInfo() is StreamedScalarValueInfo
-                || lastTrackingModifier
-                    ?.IsCallTo(EntityFrameworkQueryableExtensions.AsNoTrackingMethodInfo) == true
-                || (!QueryCompilationContext.TrackQueryResults
-                    && lastTrackingModifier
-                        ?.IsCallTo(EntityFrameworkQueryableExtensions.AsTrackingMethodInfo) != true))
+                || !QueryCompilationContext.TrackQueryResults
+                && lastTrackingModifier == null
+                || lastTrackingModifier != null
+                && !lastTrackingModifier.IsTracking)
             {
                 return;
             }
@@ -512,7 +509,7 @@ namespace Microsoft.Data.Entity.Query
 
             var queryExecutor = queryExecutorExpression.Compile();
 
-            QueryCompilationContext.Logger.LogVerbose(
+            QueryCompilationContext.Logger.LogDebug(
                 CoreLoggingEventId.QueryPlan,
                 () =>
                     {
@@ -545,6 +542,12 @@ namespace Microsoft.Data.Entity.Query
             Check.NotNull(queryModel, nameof(queryModel));
 
             _expression = CompileMainFromClauseExpression(fromClause, queryModel);
+
+            if (LinqOperatorProvider is AsyncLinqOperatorProvider
+                && _expression.Type.TryGetElementType(typeof(IEnumerable<>)) != null)
+            {
+                LinqOperatorProvider = new LinqOperatorProvider();
+            }
 
             CurrentParameter
                 = Expression.Parameter(
@@ -927,11 +930,22 @@ namespace Microsoft.Data.Entity.Query
                     .Create(QueryCompilationContext.QuerySourceMapping, this, inProjection)
                     .Visit(expression);
 
-            if (!inProjection)
+            if (!inProjection
+                && expression.Type != typeof(string)
+                    && expression.Type != typeof(byte[])
+                && _expression?.Type.TryGetElementType(typeof(IAsyncEnumerable<>)) != null)
             {
-                expression
-                    = QueryCompilationContext.LinqOperatorProvider
-                        .AdjustSequenceType(expression);
+                var elementType = expression.Type.TryGetElementType(typeof(IEnumerable<>));
+
+                if (elementType != null)
+                {
+                    return
+                        Expression.Call(
+                            AsyncLinqOperatorProvider
+                                .ToAsyncEnumerableMethod
+                                .MakeGenericMethod(elementType),
+                            expression);
+                }
             }
 
             return expression;
@@ -1072,13 +1086,13 @@ namespace Microsoft.Data.Entity.Query
             {
                 var expression = memberExpression.Expression;
 
-                var entityType = Model.FindEntityType(expression.Type);
+                var entityType = QueryCompilationContext.Model.FindEntityType(expression.Type);
 
                 expression = expression.RemoveConvert();
 
                 if (entityType == null)
                 {
-                    entityType = Model.FindEntityType(expression.Type);
+                    entityType = QueryCompilationContext.Model.FindEntityType(expression.Type);
 
                     if (entityType == null)
                     {
@@ -1146,22 +1160,16 @@ namespace Microsoft.Data.Entity.Query
 
                 if (ReferenceEquals(methodInfo, PropertyMethodInfo))
                 {
-                    var targetExpression = methodCallExpression.Arguments[0];
-
-                    MemberExpression memberExpression;
-                    while ((memberExpression = targetExpression as MemberExpression) != null)
-                    {
-                        targetExpression = memberExpression.Expression;
-                    }
-
                     var querySourceReferenceExpression
-                        = targetExpression as QuerySourceReferenceExpression;
+                        = methodCallExpression.Arguments[0].GetRootExpression<QuerySourceReferenceExpression>();
 
                     if (querySourceReferenceExpression == null
                         || querySource == null
                         || querySource == querySourceReferenceExpression.ReferencedQuerySource)
                     {
-                        var entityType = Model.FindEntityType(methodCallExpression.Arguments[0].Type);
+                        var entityType 
+                            = QueryCompilationContext.Model
+                                .FindEntityType(methodCallExpression.Arguments[0].Type);
 
                         if (entityType != null)
                         {

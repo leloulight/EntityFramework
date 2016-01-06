@@ -3,13 +3,12 @@
 
 using System.Collections.Generic;
 using JetBrains.Annotations;
-using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Update;
 
 namespace Microsoft.Data.Entity.Storage.Internal
 {
-    public interface IInMemoryStore : IEnumerable<InMemoryStore.InMemoryTable>
+    public interface IInMemoryStore
     {
         /// <summary>
         ///     Returns true just after the Store has been created, false thereafter
@@ -19,9 +18,9 @@ namespace Microsoft.Data.Entity.Storage.Internal
         /// </returns>
         bool EnsureCreated([NotNull] IModel model);
 
-        void Clear();
+        bool Clear();
 
-        IEnumerable<InMemoryStore.InMemoryTable> GetTables([NotNull] IEntityType entityType);
+        IReadOnlyList<InMemoryTableSnapshot> GetTables([NotNull] IEntityType entityType);
 
         int ExecuteTransaction([NotNull] IEnumerable<IUpdateEntry> entries);
     }

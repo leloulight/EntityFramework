@@ -15,7 +15,7 @@ namespace Microsoft.Data.Entity.Infrastructure
 {
     /// <summary>
     ///     <para>
-    ///         A base implementation of <see cref="IModelSource"/> that produces a model based on the <see cref="DbSet{TEntity}"/> properties
+    ///         A base implementation of <see cref="IModelSource" /> that produces a model based on the <see cref="DbSet{TEntity}" /> properties
     ///         exposed on the context. The model is cached to avoid recreating it every time it is requested.
     ///     </para>
     ///     <para>
@@ -68,24 +68,24 @@ namespace Microsoft.Data.Entity.Infrastructure
             var conventionSet = CreateConventionSet(conventionSetBuilder);
 
             var modelBuilder = new ModelBuilder(conventionSet);
+            var internalModelBuilder = ((IInfrastructure<InternalModelBuilder>)modelBuilder).Instance;
 
-            var model = (Model)modelBuilder.Model;
-            model.SetProductVersion(ProductInfo.GetVersion());
+            internalModelBuilder.Metadata.SetProductVersion(ProductInfo.GetVersion());
 
             FindSets(modelBuilder, context);
 
             OnModelCreating(context, modelBuilder);
 
-            modelBuilder.Validate();
+            internalModelBuilder.Validate();
 
-            validator.Validate(model);
+            validator.Validate(modelBuilder.Model);
 
-            return model;
+            return modelBuilder.Model;
         }
 
         /// <summary>
-        ///     Creates the convention set to be used for the model. Uses the <see cref="CoreConventionSetBuilder"/>
-        ///     if <paramref name="conventionSetBuilder"/> is null.
+        ///     Creates the convention set to be used for the model. Uses the <see cref="CoreConventionSetBuilder" />
+        ///     if <paramref name="conventionSetBuilder" /> is null.
         /// </summary>
         /// <param name="conventionSetBuilder"> The convention set builder to be used. </param>
         /// <returns> The convention set to be used. </returns>
@@ -98,7 +98,7 @@ namespace Microsoft.Data.Entity.Infrastructure
         }
 
         /// <summary>
-        ///     Adds the entity types found in <see cref="DbSet{TEntity}"/> properties on the context to the model.
+        ///     Adds the entity types found in <see cref="DbSet{TEntity}" /> properties on the context to the model.
         /// </summary>
         /// <param name="modelBuilder"></param>
         /// <param name="context"></param>
@@ -111,7 +111,7 @@ namespace Microsoft.Data.Entity.Infrastructure
         }
 
         /// <summary>
-        ///     Runs <see cref="DbContext.OnModelCreating(ModelBuilder)"/> from the context.
+        ///     Runs <see cref="DbContext.OnModelCreating(ModelBuilder)" /> from the context.
         /// </summary>
         /// <param name="context"></param>
         /// <param name="modelBuilder"></param>

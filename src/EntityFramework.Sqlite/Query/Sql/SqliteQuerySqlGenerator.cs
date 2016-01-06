@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System.Linq.Expressions;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Query.Expressions;
 using Microsoft.Data.Entity.Storage;
@@ -13,11 +14,17 @@ namespace Microsoft.Data.Entity.Query.Sql
         protected override string ConcatOperator => "||";
 
         public SqliteQuerySqlGenerator(
-            [NotNull] IRelationalCommandBuilderFactory commandBuilderFactory,
-            [NotNull] ISqlGenerator sqlGenerator,
+            [NotNull] IRelationalCommandBuilderFactory relationalCommandBuilderFactory,
+            [NotNull] ISqlGenerationHelper sqlGenerationHelper,
             [NotNull] IParameterNameGeneratorFactory parameterNameGeneratorFactory,
+            [NotNull] IRelationalTypeMapper relationalTypeMapper,
             [NotNull] SelectExpression selectExpression)
-            : base(commandBuilderFactory, sqlGenerator, parameterNameGeneratorFactory, selectExpression)
+            : base(
+                  relationalCommandBuilderFactory, 
+                  sqlGenerationHelper, 
+                  parameterNameGeneratorFactory, 
+                  relationalTypeMapper, 
+                  selectExpression)
         {
         }
 
@@ -30,17 +37,19 @@ namespace Microsoft.Data.Entity.Query.Sql
         {
             Check.NotNull(selectExpression, nameof(selectExpression));
 
-            if (selectExpression.Limit != null
-                || selectExpression.Offset != null)
+            if ((selectExpression.Limit != null)
+                || (selectExpression.Offset != null))
             {
                 Sql.AppendLine()
-                    .Append("LIMIT ")
-                    .Append(selectExpression.Limit ?? -1);
+                    .Append("LIMIT ");
+
+                Visit(selectExpression.Limit ?? Expression.Constant(-1));
 
                 if (selectExpression.Offset != null)
                 {
-                    Sql.Append(" OFFSET ")
-                        .Append(selectExpression.Offset);
+                    Sql.Append(" OFFSET ");
+
+                    Visit(selectExpression.Offset);
                 }
             }
         }

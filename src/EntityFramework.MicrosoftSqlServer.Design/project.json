@@ -18,7 +18,13 @@
     "EntityFramework.MicrosoftSqlServer.Design.SqlServerDesignStrings": "Properties/SqlServerDesignStrings.resx"
   },
   "frameworks": {
+<<<<<<< HEAD
     "net451": {},
     "dnxcore50": {}
+=======
+    "net451": { },
+    "dotnet5.4": { },
+    "netcore50": { }
+>>>>>>> refs/remotes/aspnet/dev
   }
 }

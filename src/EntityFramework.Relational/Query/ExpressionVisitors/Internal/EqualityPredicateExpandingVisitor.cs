@@ -8,56 +8,45 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
 {
     public class EqualityPredicateExpandingVisitor : RelinqExpressionVisitor
     {
-        protected override Expression VisitBinary(BinaryExpression expression)
+        protected override Expression VisitBinary(BinaryExpression node)
         {
-            var left = Visit(expression.Left);
-            var right = Visit(expression.Right);
+            var newLeft = Visit(node.Left);
+            var newRight = Visit(node.Right);
 
-            if ((expression.NodeType == ExpressionType.Equal
-                 || expression.NodeType == ExpressionType.NotEqual)
-                && expression.Left.Type == typeof(bool)
-                && expression.Right.Type == typeof(bool))
+            if (((node.NodeType == ExpressionType.Equal)
+                 || (node.NodeType == ExpressionType.NotEqual))
+                && (node.Left.Type == typeof(bool))
+                && (node.Right.Type == typeof(bool)))
             {
-                var simpleLeft = expression.Left.IsSimpleExpression();
-                var simpleRight = expression.Right.IsSimpleExpression();
+                var simpleLeft = node.Left.IsSimpleExpression();
+                var simpleRight = node.Right.IsSimpleExpression();
 
                 if (!simpleLeft
                     || !simpleRight)
                 {
                     var leftOperand = simpleLeft
-                        ? left
+                        ? newLeft
                         : Expression.Condition(
-                            left,
+                            newLeft,
                             Expression.Constant(true),
                             Expression.Constant(false),
                             typeof(bool));
 
                     var rightOperand = simpleRight
-                        ? right
+                        ? newRight
                         : Expression.Condition(
-                            right,
+                            newRight,
                             Expression.Constant(true),
                             Expression.Constant(false),
                             typeof(bool));
 
-                    return expression.NodeType == ExpressionType.Equal
+                    return node.NodeType == ExpressionType.Equal
                         ? Expression.Equal(leftOperand, rightOperand)
                         : Expression.NotEqual(leftOperand, rightOperand);
                 }
             }
 
-            if (left == expression.Left
-                && right == expression.Right)
-            {
-                return expression;
-            }
-
-            return Expression.MakeBinary(
-                expression.NodeType,
-                left,
-                right,
-                expression.IsLiftedToNull,
-                expression.Method);
+            return node.Update(newLeft, node.Conversion, newRight);
         }
     }
 }

@@ -8,45 +8,27 @@ using Microsoft.Data.Entity.Utilities;
 
 namespace Microsoft.Data.Entity.Query.Sql
 {
-    public class SqliteQuerySqlGeneratorFactory : ISqlQueryGeneratorFactory
+    public class SqliteQuerySqlGeneratorFactory : QuerySqlGeneratorFactoryBase
     {
-        private readonly IRelationalCommandBuilderFactory _commandBuilderFactory;
-        private readonly ISqlGenerator _sqlGenerator;
-        private readonly IParameterNameGeneratorFactory _parameterNameGeneratorFactory;
-        private readonly ISqlCommandBuilder _sqlCommandBuilder;
-
         public SqliteQuerySqlGeneratorFactory(
             [NotNull] IRelationalCommandBuilderFactory commandBuilderFactory,
-            [NotNull] ISqlGenerator sqlGenerator,
+            [NotNull] ISqlGenerationHelper sqlGenerationHelper,
             [NotNull] IParameterNameGeneratorFactory parameterNameGeneratorFactory,
-            [NotNull] ISqlCommandBuilder sqlCommandBuilder)
+            [NotNull] IRelationalTypeMapper relationalTypeMapper)
+            : base(
+                Check.NotNull(commandBuilderFactory, nameof(commandBuilderFactory)),
+                Check.NotNull(sqlGenerationHelper, nameof(sqlGenerationHelper)),
+                Check.NotNull(parameterNameGeneratorFactory, nameof(parameterNameGeneratorFactory)),
+                Check.NotNull(relationalTypeMapper, nameof(relationalTypeMapper)))
         {
-            Check.NotNull(commandBuilderFactory, nameof(commandBuilderFactory));
-            Check.NotNull(sqlGenerator, nameof(sqlGenerator));
-            Check.NotNull(parameterNameGeneratorFactory, nameof(parameterNameGeneratorFactory));
-            Check.NotNull(sqlCommandBuilder, nameof(sqlCommandBuilder));
-
-            _commandBuilderFactory = commandBuilderFactory;
-            _sqlGenerator = sqlGenerator;
-            _parameterNameGeneratorFactory = parameterNameGeneratorFactory;
-            _sqlCommandBuilder = sqlCommandBuilder;
         }
 
-        public virtual ISqlQueryGenerator CreateGenerator([NotNull] SelectExpression selectExpression)
+        public override IQuerySqlGenerator CreateDefault(SelectExpression selectExpression)
             => new SqliteQuerySqlGenerator(
-                _commandBuilderFactory,
-                _sqlGenerator,
-                _parameterNameGeneratorFactory,
+                CommandBuilderFactory,
+                SqlGenerationHelper,
+                ParameterNameGeneratorFactory,
+                RelationalTypeMapper,
                 Check.NotNull(selectExpression, nameof(selectExpression)));
-
-        public virtual ISqlQueryGenerator CreateRawCommandGenerator(
-            [NotNull] SelectExpression selectExpression,
-            [NotNull] string sql,
-            [NotNull] object[] parameters)
-            => new RawSqlQueryGenerator(
-                _sqlCommandBuilder,
-                Check.NotNull(selectExpression, nameof(selectExpression)),
-                Check.NotNull(sql, nameof(sql)),
-                Check.NotNull(parameters, nameof(parameters)));
     }
 }

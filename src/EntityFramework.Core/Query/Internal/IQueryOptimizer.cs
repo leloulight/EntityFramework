@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using JetBrains.Annotations;
-using Microsoft.Data.Entity.Query.Annotations;
+using Microsoft.Data.Entity.Query.ResultOperators;
 using Remotion.Linq;
 
 namespace Microsoft.Data.Entity.Query.Internal
@@ -11,7 +11,7 @@ namespace Microsoft.Data.Entity.Query.Internal
     public interface IQueryOptimizer
     {
         void Optimize(
-            [NotNull] IReadOnlyCollection<QueryAnnotationBase> queryAnnotations,
+            [NotNull] IReadOnlyCollection<IQueryAnnotation> queryAnnotations,
             [NotNull] QueryModel queryModel);
     }
 }

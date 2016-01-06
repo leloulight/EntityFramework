@@ -1,14 +1,14 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using EntityFramework.Microbenchmarks.Core;
-using EntityFramework.Microbenchmarks.Core.Models.AdventureWorks;
-using EntityFramework.Microbenchmarks.Core.Models.AdventureWorks.TestHelpers;
-using EntityFramework.Microbenchmarks.EF6.Models.AdventureWorks;
 using System;
 using System.Data.Entity;
 using System.Data.SqlClient;
 using System.Linq;
+using EntityFramework.Microbenchmarks.Core;
+using EntityFramework.Microbenchmarks.Core.Models.AdventureWorks;
+using EntityFramework.Microbenchmarks.Core.Models.AdventureWorks.TestHelpers;
+using EntityFramework.Microbenchmarks.EF6.Models.AdventureWorks;
 using Xunit;
 
 namespace EntityFramework.Microbenchmarks.EF6
@@ -25,7 +25,8 @@ namespace EntityFramework.Microbenchmarks.EF6
             RunColdStartEnabledTest(cold, c => c.CreateAndDisposeUnusedContext(collector, count));
         }
 
-        [AdventureWorksDatabaseBenchmark]
+        [Benchmark]
+        [AdventureWorksDatabaseRequired]
 #if !DNX451
         [BenchmarkVariation("Cold (1 instance)", true, 1)]
 #endif
@@ -35,7 +36,8 @@ namespace EntityFramework.Microbenchmarks.EF6
             RunColdStartEnabledTest(cold, c => c.InitializeAndQuery_AdventureWorks(collector, count));
         }
 
-        [AdventureWorksDatabaseBenchmark]
+        [Benchmark]
+        [AdventureWorksDatabaseRequired]
 #if !DNX451
         [BenchmarkVariation("Cold (1 instance)", true, 1)]
 #endif
@@ -81,7 +83,7 @@ namespace EntityFramework.Microbenchmarks.EF6
             {
                 using (collector.StartCollection())
                 {
-                    for (int i = 0; i < count; i++)
+                    for (var i = 0; i < count; i++)
                     {
                         using (var context = AdventureWorksFixture.CreateContext())
                         {
@@ -94,7 +96,7 @@ namespace EntityFramework.Microbenchmarks.EF6
             {
                 using (collector.StartCollection())
                 {
-                    for (int i = 0; i < count; i++)
+                    for (var i = 0; i < count; i++)
                     {
                         using (var context = AdventureWorksFixture.CreateContext())
                         {
@@ -108,7 +110,7 @@ namespace EntityFramework.Microbenchmarks.EF6
             {
                 using (collector.StartCollection())
                 {
-                    for (int i = 0; i < count; i++)
+                    for (var i = 0; i < count; i++)
                     {
                         using (var context = AdventureWorksFixture.CreateContext())
                         {

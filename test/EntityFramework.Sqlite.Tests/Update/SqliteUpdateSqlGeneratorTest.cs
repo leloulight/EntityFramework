@@ -13,7 +13,7 @@ namespace Microsoft.Data.Entity.Update
     public class SqliteUpdateSqlGeneratorTest : UpdateSqlGeneratorTestBase
     {
         protected override IUpdateSqlGenerator CreateSqlGenerator()
-            => new SqliteUpdateSqlGenerator(new SqliteSqlGenerator());
+            => new SqliteUpdateSqlGenerator(new SqliteSqlGenerationHelper());
 
         protected override string RowsAffected => "changes()";
         protected override string Identity => "last_insert_rowid()";
@@ -30,7 +30,5 @@ namespace Microsoft.Data.Entity.Update
             var ex = Assert.Throws<NotSupportedException>(() => base.GenerateNextSequenceValueOperation_returns_statement_with_sanatized_sequence());
             Assert.Equal(SqliteStrings.SequencesNotSupported, ex.Message);
         }
-
-
     }
 }

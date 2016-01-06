@@ -13,16 +13,14 @@ using Microsoft.Data.Entity.Utilities;
 namespace Microsoft.Data.Entity.Metadata.Internal
 {
     [DebuggerDisplay("{DeclaringEntityType.Name,nq}.{Name,nq}")]
-    public class Navigation : ConventionalAnnotatable, IMutableNavigation, INavigationAccessors
+    public class Navigation : ConventionalAnnotatable, IMutableNavigation, INavigationAccessors, IPropertyIndexesAccessor
     {
-        // Warning: Never access this field directly as access needs to be thread-safe
+        // Warning: Never access these fieldd directly as access needs to be thread-safe
         private IClrPropertyGetter _getter;
-
-        // Warning: Never access this field directly as access needs to be thread-safe
         private IClrPropertySetter _setter;
-
-        // Warning: Never access this field directly as access needs to be thread-safe
         private IClrCollectionAccessor _collectionAccessor;
+        private PropertyAccessors _accessors;
+        private PropertyIndexes _indexes;
 
         public Navigation([NotNull] string name, [NotNull] ForeignKey foreignKey)
         {
@@ -87,8 +85,8 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             }
 
             var navigationTargetClrType = navigationProperty.PropertyType.TryGetSequenceType();
-            if (shouldBeCollection == false
-                || navigationTargetClrType == null
+            if ((shouldBeCollection == false)
+                || (navigationTargetClrType == null)
                 || !navigationTargetClrType.GetTypeInfo().IsAssignableFrom(targetClrType.GetTypeInfo()))
             {
                 if (shouldBeCollection == true)
@@ -97,10 +95,10 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                     {
                         throw new InvalidOperationException(
                             CoreStrings.NavigationCollectionWrongClrType(
-                            navigationProperty.Name,
-                            sourceClrType.Name,
-                            navigationProperty.PropertyType.FullName,
-                            targetClrType.FullName));
+                                navigationProperty.Name,
+                                sourceClrType.Name,
+                                navigationProperty.PropertyType.FullName,
+                                targetClrType.FullName));
                     }
                     return false;
                 }
@@ -132,7 +130,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             Check.NotNull(dependentType, nameof(dependentType));
 
             if ((!shouldPointToPrincipal.HasValue
-                 || this.IsDependentToPrincipal() == shouldPointToPrincipal.Value)
+                 || (this.IsDependentToPrincipal() == shouldPointToPrincipal.Value))
                 && ForeignKey.IsCompatible(principalType, dependentType, oneToOne))
             {
                 return true;
@@ -156,11 +154,33 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         public virtual IClrPropertyGetter Getter
             => LazyInitializer.EnsureInitialized(ref _getter, () => new ClrPropertyGetterFactory().Create(this));
 
-        public virtual IClrPropertySetter Setter 
+        public virtual IClrPropertySetter Setter
             => LazyInitializer.EnsureInitialized(ref _setter, () => new ClrPropertySetterFactory().Create(this));
 
-        public virtual IClrCollectionAccessor CollectionAccessor 
+        public virtual IClrCollectionAccessor CollectionAccessor
             => LazyInitializer.EnsureInitialized(ref _collectionAccessor, () => new ClrCollectionAccessorFactory().Create(this));
+
+        public virtual PropertyAccessors Accessors
+            => LazyInitializer.EnsureInitialized(ref _accessors, () => new PropertyAccessorsFactory().Create(this));
+
+        public virtual PropertyIndexes Indexes
+        {
+            get { return LazyInitializer.EnsureInitialized(ref _indexes, () => DeclaringEntityType.CalculateIndexes(this)); }
+
+            set
+            {
+                if (value == null)
+                {
+                    // This path should only kick in when the model is still mutable and therefore access does not need
+                    // to be thread-safe.
+                    _indexes = null;
+                }
+                else
+                {
+                    LazyInitializer.EnsureInitialized(ref _indexes, () => value);
+                }
+            }
+        }
 
         IForeignKey INavigation.ForeignKey => ForeignKey;
         IMutableForeignKey IMutableNavigation.ForeignKey => ForeignKey;

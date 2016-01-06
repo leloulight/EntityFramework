@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using JetBrains.Annotations;
-using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Storage;
@@ -78,8 +77,8 @@ namespace Microsoft.Data.Entity.Update
 
         public virtual object Value
         {
-            get { return Entry[Property]; }
-            [param: CanBeNull] set { Entry[Property] = value; }
+            get { return Entry.GetCurrentValue(Property); }
+            [param: CanBeNull] set { Entry.SetCurrentValue(Property, value); }
         }
     }
 }

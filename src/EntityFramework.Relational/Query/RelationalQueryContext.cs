@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Query.Internal;
 using Microsoft.Data.Entity.Storage;
 using Microsoft.Data.Entity.Utilities;
@@ -22,8 +23,13 @@ namespace Microsoft.Data.Entity.Query
 
         public RelationalQueryContext(
             [NotNull] Func<IQueryBuffer> queryBufferFactory,
-            [NotNull] IRelationalConnection connection)
-            : base(Check.NotNull(queryBufferFactory, nameof(queryBufferFactory)))
+            [NotNull] IRelationalConnection connection,
+            [NotNull] IStateManager stateManager,
+            [NotNull] IConcurrencyDetector concurrencyDetector)
+            : base(
+                  Check.NotNull(queryBufferFactory, nameof(queryBufferFactory)),
+                  Check.NotNull(stateManager, nameof(stateManager)),
+                  Check.NotNull(concurrencyDetector, nameof(concurrencyDetector)))
         {
             Check.NotNull(connection, nameof(connection));
 
@@ -32,7 +38,8 @@ namespace Microsoft.Data.Entity.Query
 
         public virtual IRelationalConnection Connection { get; }
 
-        public virtual void RegisterValueBufferCursor([NotNull] IValueBufferCursor valueBufferCursor, int? queryIndex)
+        public virtual void RegisterValueBufferCursor(
+            [NotNull] IValueBufferCursor valueBufferCursor, int? queryIndex)
         {
             Check.NotNull(valueBufferCursor, nameof(valueBufferCursor));
 

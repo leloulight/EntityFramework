@@ -3,14 +3,18 @@
 
 using System.Linq;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.Northwind;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Xunit;
+
+// ReSharper disable AccessToDisposedClosure
 
 namespace Microsoft.Data.Entity.FunctionalTests
 {
+    [MonoVersionCondition(Min = "4.2.0", SkipReason = "Queries fail on Mono < 4.2.0 due to differences in the implementation of LINQ")]
     public abstract class AsNoTrackingTestBase<TFixture> : IClassFixture<TFixture>
         where TFixture : NorthwindQueryFixtureBase, new()
     {
-        [Fact]
+        [ConditionalFact]
         public virtual void Entity_not_added_to_state_manager()
         {
             using (var context = CreateContext())
@@ -22,17 +26,17 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Applied_to_body_clause()
         {
             using (var context = CreateContext())
             {
                 var customers
                     = (from c in context.Set<Customer>()
-                        join o in context.Set<Order>().AsNoTracking()
-                            on c.CustomerID equals o.CustomerID
-                        where c.CustomerID == "ALFKI"
-                        select o)
+                       join o in context.Set<Order>().AsNoTracking()
+                           on c.CustomerID equals o.CustomerID
+                       where c.CustomerID == "ALFKI"
+                       select o)
                         .ToList();
 
                 Assert.Equal(6, customers.Count);
@@ -40,7 +44,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Applied_to_multiple_body_clauses()
         {
             using (var context = CreateContext())
@@ -57,17 +61,17 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Applied_to_body_clause_with_projection()
         {
             using (var context = CreateContext())
             {
                 var customers
                     = (from c in context.Set<Customer>()
-                        join o in context.Set<Order>().AsNoTracking()
-                            on c.CustomerID equals o.CustomerID
-                        where c.CustomerID == "ALFKI"
-                        select new { c.CustomerID, c, ocid = o.CustomerID, o })
+                       join o in context.Set<Order>().AsNoTracking()
+                           on c.CustomerID equals o.CustomerID
+                       where c.CustomerID == "ALFKI"
+                       select new { c.CustomerID, c, ocid = o.CustomerID, o })
                         .ToList();
 
                 Assert.Equal(6, customers.Count);
@@ -75,17 +79,17 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Applied_to_projection()
         {
             using (var context = CreateContext())
             {
                 var customers
                     = (from c in context.Set<Customer>()
-                        join o in context.Set<Order>().AsNoTracking()
-                            on c.CustomerID equals o.CustomerID
-                        where c.CustomerID == "ALFKI"
-                        select new { c, o })
+                       join o in context.Set<Order>().AsNoTracking()
+                           on c.CustomerID equals o.CustomerID
+                       where c.CustomerID == "ALFKI"
+                       select new { c, o })
                         .AsNoTracking()
                         .ToList();
 
@@ -94,7 +98,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Can_get_current_values()
         {
             using (var db = CreateContext())
@@ -109,7 +113,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Include_reference_and_collection()
         {
             using (var context = CreateContext())
@@ -125,7 +129,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
         public virtual void Where_simple_shadow()
         {
             using (var context = CreateContext())
@@ -137,6 +141,22 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         .ToList();
 
                 Assert.Equal(6, employees.Count);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void SelectMany_simple()
+        {
+            using (var context = CreateContext())
+            {
+                var results
+                    = (from e in context.Set<Employee>()
+                       from c in context.Set<Customer>()
+                       select new { c, e })
+                        .AsNoTracking()
+                        .ToList();
+
+                Assert.Equal(819, results.Count);
             }
         }
 

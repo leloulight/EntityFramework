@@ -4,7 +4,8 @@
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Infrastructure.Internal;
-using Microsoft.Data.Entity.Metadata.Conventions.Internal;
+using Microsoft.Data.Entity.Internal;
+using Microsoft.Data.Entity.Metadata.Conventions;
 using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Migrations;
 using Microsoft.Data.Entity.Migrations.Internal;
@@ -36,7 +37,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AddSingleton<SqliteValueGeneratorCache>()
                 .AddSingleton<SqliteAnnotationProvider>()
                 .AddSingleton<SqliteTypeMapper>()
-                .AddSingleton<SqliteSqlGenerator>()
+                .AddSingleton<SqliteSqlGenerationHelper>()
                 .AddSingleton<SqliteModelSource>()
                 .AddSingleton<SqliteMigrationsAnnotationProvider>()
                 .AddScoped<SqliteModelValidator>()

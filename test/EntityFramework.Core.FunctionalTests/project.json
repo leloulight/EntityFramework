@@ -5,7 +5,12 @@
     "keyFile": "../../tools/Key.snk"
   },
   "dependencies": {
+<<<<<<< HEAD
     "EntityFramework.InMemory": "7.0.0-rc1-final",
+=======
+    "Microsoft.Extensions.PlatformAbstractions": "1.0.0-*",
+    "EntityFramework.InMemory": "7.0.0-*",
+>>>>>>> refs/remotes/aspnet/dev
     "xunit.assert": "2.1.0-*",
     "xunit.extensibility.execution": "2.1.0-*"
   },
@@ -13,7 +18,7 @@
     "test": "xunit.runner.aspnet"
   },
   "frameworks": {
-    "net46": {
+    "net451": {
       "frameworkAssemblies": {
         "System.Threading.Tasks": {
           "version": "4.0.0.0",
@@ -32,8 +37,13 @@
     },
     "dnxcore50": {
       "dependencies": {
+<<<<<<< HEAD
         "Microsoft.CSharp": "4.0.1-beta-23516",
         "xunit.runner.aspnet": "2.0.0-aspnet-rc1-final"
+=======
+        "Microsoft.CSharp": "4.0.1-*",
+        "xunit.runner.aspnet": "2.0.0-aspnet-*"
+>>>>>>> refs/remotes/aspnet/dev
       }
     }
   }

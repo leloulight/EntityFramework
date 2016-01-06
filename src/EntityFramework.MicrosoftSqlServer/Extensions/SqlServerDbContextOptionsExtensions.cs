@@ -4,7 +4,7 @@
 using System.Data.Common;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
-using Microsoft.Data.Entity.Internal;
+using Microsoft.Data.Entity.Infrastructure.Internal;
 using Microsoft.Data.Entity.Utilities;
 
 // ReSharper disable once CheckNamespace
@@ -37,8 +37,8 @@ namespace Microsoft.Data.Entity
         ///     Configures the context to connect to a Microsoft SQL Server database.
         /// </summary>
         /// <param name="optionsBuilder"> The options for the context. </param>
-        /// <param name="connection"> 
-        ///     An existing <see cref="DbConnection"/> to be used to connect to the database. If the connection is
+        /// <param name="connection">
+        ///     An existing <see cref="DbConnection" /> to be used to connect to the database. If the connection is
         ///     in the open state then EF will not open or close the connection. If the connection is in the closed
         ///     state then EF will open and close the connection as needed.
         /// </param>

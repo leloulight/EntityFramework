@@ -3,19 +3,18 @@
 
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.ChangeTracking;
-using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
 
 namespace Microsoft.Data.Entity.Update
 {
     /// <summary>
-    ///     <para>  
+    ///     <para>
     ///         The information passed to a database provider to save changes to an entity to the database.
-    ///     </para>  
-    ///     <para>  
-    ///         This interface is typically used by database providers (and other extensions). It is generally  
-    ///         not used in application code.  
-    ///     </para>  
+    ///     </para>
+    ///     <para>
+    ///         This interface is typically used by database providers (and other extensions). It is generally
+    ///         not used in application code.
+    ///     </para>
     /// </summary>
     public interface IUpdateEntry
     {
@@ -45,51 +44,48 @@ namespace Microsoft.Data.Entity.Update
         bool IsStoreGenerated([NotNull] IProperty property);
 
         /// <summary>
-        ///     Gets the value assigned to the given property when it was retrieved from the database.
+        ///     Gets the value assigned to the property.
         /// </summary>
-        /// <param name="property"> The property to get the original value for. </param>
-        /// <returns> The original value for the property. </returns>
-        object GetOriginalValue([NotNull] IProperty property);
+        /// <param name="propertyBase"> The property to get the value for. </param>
+        /// <returns> The value for the property. </returns>
+        object GetCurrentValue([NotNull] IPropertyBase propertyBase);
 
         /// <summary>
-        ///     Gets or sets the value currently assigned to a given property.
+        ///     Gets the value assigned to the property when it was retrieved from the database.
         /// </summary>
-        /// <param name="propertyBase"> The property to get or set the current value for. </param>
-        /// <returns> The current value assigned to the property. </returns>
-        object this[[NotNull] IPropertyBase propertyBase] { get; [param: CanBeNull] set; }
+        /// <param name="propertyBase"> The property to get the value for. </param>
+        /// <returns> The value for the property. </returns>
+        object GetOriginalValue([NotNull] IPropertyBase propertyBase);
 
         /// <summary>
-        ///     Gets an object representing the values assigned to the primary key.
-        ///     <see cref="IKeyValue"/> is typically used to test the equivalence of key values. 
+        ///     Gets the value assigned to the property.
         /// </summary>
-        /// <param name="originalValue"> A value indicating whether to get the current or original value. </param>
-        /// <returns> The values assigned to the primary key. </returns>
-        IKeyValue GetPrimaryKeyValue(bool originalValue = false);
+        /// <param name="propertyBase"> The property to get the value for. </param>
+        /// <typeparam name="TProperty"> The type of the property. </typeparam>
+        /// <returns> The value for the property. </returns>
+        TProperty GetCurrentValue<TProperty>([NotNull] IPropertyBase propertyBase);
 
         /// <summary>
-        ///     Gets an object representing the values assigned to the principal key that a foreign key references.
-        ///     <see cref="IKeyValue"/> is typically used to test the equivalence of key values. 
+        ///     Gets the value assigned to the property when it was retrieved from the database.
         /// </summary>
-        /// <param name="foreignKey"> The foreign key to get the principal key values for. </param>
-        /// <param name="originalValue"> A value indicating whether to get the current or original value. </param>
-        /// <returns> The values assigned to the key. </returns>
-        IKeyValue GetPrincipalKeyValue([NotNull] IForeignKey foreignKey, bool originalValue = false);
+        /// <param name="property"> The property to get the value for. </param>
+        /// <typeparam name="TProperty"> The type of the property. </typeparam>
+        /// <returns> The value for the property. </returns>
+        TProperty GetOriginalValue<TProperty>([NotNull] IProperty property);
 
         /// <summary>
-        ///     Gets an object representing the values assigned to a foreign key.
-        ///     <see cref="IKeyValue"/> is typically used to test the equivalence of key values. 
+        ///     Gets the value assigned to the property.
         /// </summary>
-        /// <param name="foreignKey"> The foreign key to get values for. </param>
-        /// <param name="originalValue"> A value indicating whether to get the current or original value. </param>
-        /// <returns> The values assigned to the key. </returns>
-        IKeyValue GetDependentKeyValue([NotNull] IForeignKey foreignKey, bool originalValue = false);
+        /// <param name="propertyBase"> The property to set the value for. </param>
+        /// <param name="value"> The value to set. </param>
+        void SetCurrentValue([NotNull] IPropertyBase propertyBase, [CanBeNull] object value);
 
         /// <summary>
-        ///     Gets an <see cref="EntityEntry"/> for the entity being saved. <see cref="EntityEntry"/> is an API optimized for
-        ///     application developers and <see cref="IUpdateEntry"/> is optimized for database providers, but there may be instances
-        ///     where a database provider wants to access information from <see cref="EntityEntry"/>.
+        ///     Gets an <see cref="EntityEntry" /> for the entity being saved. <see cref="EntityEntry" /> is an API optimized for
+        ///     application developers and <see cref="IUpdateEntry" /> is optimized for database providers, but there may be instances
+        ///     where a database provider wants to access information from <see cref="EntityEntry" />.
         /// </summary>
-        /// <returns> An <see cref="EntityEntry"/> for this entity. </returns>
+        /// <returns> An <see cref="EntityEntry" /> for this entity. </returns>
         EntityEntry ToEntityEntry();
     }
 }

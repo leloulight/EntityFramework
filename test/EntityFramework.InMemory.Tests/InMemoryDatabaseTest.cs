@@ -76,8 +76,8 @@ namespace Microsoft.Data.Entity.InMemory.Tests
 
             await inMemoryDatabase.SaveChangesAsync(new[] { entityEntry });
 
-            Assert.Equal(1, inMemoryDatabase.Store.SelectMany(t => t).Count());
-            Assert.Equal(new object[] { 42, "Unikorn" }, inMemoryDatabase.Store.Single().Single());
+            Assert.Equal(1, inMemoryDatabase.Store.GetTables(entityEntry.EntityType).SelectMany(t => t.Rows).Count());
+            Assert.Equal(new object[] { 42, "Unikorn" }, inMemoryDatabase.Store.GetTables(entityEntry.EntityType).Single().Rows.Single());
         }
 
         [Fact]
@@ -98,8 +98,8 @@ namespace Microsoft.Data.Entity.InMemory.Tests
 
             await inMemoryDatabase.SaveChangesAsync(new[] { entityEntry });
 
-            Assert.Equal(1, inMemoryDatabase.Store.SelectMany(t => t).Count());
-            Assert.Equal(new object[] { 42, "Unikorn, The Return" }, inMemoryDatabase.Store.Single().Single());
+            Assert.Equal(1, inMemoryDatabase.Store.GetTables(entityEntry.EntityType).SelectMany(t => t.Rows).Count());
+            Assert.Equal(new object[] { 42, "Unikorn, The Return" }, inMemoryDatabase.Store.GetTables(entityEntry.EntityType).Single().Rows.Single());
         }
 
         [Fact]
@@ -123,7 +123,7 @@ namespace Microsoft.Data.Entity.InMemory.Tests
 
             await inMemoryDatabase.SaveChangesAsync(new[] { entityEntry });
 
-            Assert.Equal(0, inMemoryDatabase.Store.SelectMany(t => t).Count());
+            Assert.Equal(0, inMemoryDatabase.Store.GetTables(entityEntry.EntityType).SelectMany(t => t.Rows).Count());
         }
 
         [Fact]
@@ -136,7 +136,7 @@ namespace Microsoft.Data.Entity.InMemory.Tests
             mockFactory.Setup(m => m.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
 
             var serviceCollection = new ServiceCollection();
-            serviceCollection.AddInstance(mockFactory.Object);
+            serviceCollection.AddSingleton(mockFactory.Object);
 
             var scopedServices = InMemoryTestHelpers.Instance.CreateContextServices(serviceCollection, CreateModel());
 

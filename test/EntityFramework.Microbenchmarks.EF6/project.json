@@ -11,7 +11,11 @@
     "System.ComponentModel.DataAnnotations": "4.0.0.0"
   },
   "frameworks": {
+<<<<<<< HEAD
     "net46": {},
+=======
+    "net451": { },
+>>>>>>> refs/remotes/aspnet/dev
     "dnx451": {
       "dependencies": {
         "xunit.runner.aspnet": "2.0.0-aspnet-rc1-final"

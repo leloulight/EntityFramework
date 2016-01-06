@@ -8,6 +8,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Storage;
@@ -16,45 +18,47 @@ using Microsoft.Data.Entity.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
+// ReSharper disable UnassignedGetOnlyAutoProperty
 
 // ReSharper disable ClassNeverInstantiated.Local
 // ReSharper disable MemberCanBePrivate.Local
 
 namespace Microsoft.Data.Entity.SqlServer.Tests
 {
+    [MonoVersionCondition(Min = "4.2.0", SkipReason = "Cannot immitate SqlError on this version of Mono")]
     public class SqlServerDatabaseCreatorTest
     {
-        [Fact]
+        [ConditionalFact]
         public async Task Create_checks_for_existence_and_retries_if_no_proccess_until_it_passes()
         {
             await Create_checks_for_existence_and_retries_until_it_passes(233, async: false);
         }
 
-        [Fact]
+        [ConditionalFact]
         public async Task Create_checks_for_existence_and_retries_if_timeout_until_it_passes()
         {
             await Create_checks_for_existence_and_retries_until_it_passes(-2, async: false);
         }
 
-        [Fact]
+        [ConditionalFact]
         public async Task Create_checks_for_existence_and_retries_if_cannot_open_until_it_passes()
         {
             await Create_checks_for_existence_and_retries_until_it_passes(4060, async: false);
         }
 
-        [Fact]
+        [ConditionalFact]
         public async Task CreateAsync_checks_for_existence_and_retries_if_no_proccess_until_it_passes()
         {
             await Create_checks_for_existence_and_retries_until_it_passes(233, async: true);
         }
 
-        [Fact]
+        [ConditionalFact]
         public async Task CreateAsync_checks_for_existence_and_retries_if_timeout_until_it_passes()
         {
             await Create_checks_for_existence_and_retries_until_it_passes(-2, async: true);
         }
 
-        [Fact]
+        [ConditionalFact]
         public async Task CreateAsync_checks_for_existence_and_retries_if_cannot_open_until_it_passes()
         {
             await Create_checks_for_existence_and_retries_until_it_passes(4060, async: true);
@@ -87,13 +91,13 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
             Assert.Equal(5, connection.OpenCount);
         }
 
-        [Fact]
+        [ConditionalFact]
         public async Task Create_checks_for_existence_and_ultimately_gives_up_waiting()
         {
             await Create_checks_for_existence_and_ultimately_gives_up_waiting_test(async: false);
         }
 
-        [Fact]
+        [ConditionalFact]
         public async Task CreateAsync_checks_for_existence_and_ultimately_gives_up_waiting()
         {
             await Create_checks_for_existence_and_ultimately_gives_up_waiting_test(async: true);
@@ -126,8 +130,8 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
 
         private class FakeSqlServerConnection : SqlServerConnection
         {
-            private IDbContextOptions _options;
-            private ILoggerFactory _loggerFactory;
+            private readonly IDbContextOptions _options;
+            private readonly ILoggerFactory _loggerFactory;
 
             public FakeSqlServerConnection(IDbContextOptions options, ILoggerFactory loggerFactory)
                 : base(options, new Logger<SqlServerConnection>(loggerFactory))
@@ -158,54 +162,51 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
                 return Task.FromResult(0);
             }
 
-            public override ISqlServerConnection CreateMasterConnection()
-            {
-                return new FakeSqlServerConnection(_options, _loggerFactory);
-            }
+            public override ISqlServerConnection CreateMasterConnection() => new FakeSqlServerConnection(_options, _loggerFactory);
         }
 
         private class FakeRelationalCommandBuilderFactory : IRelationalCommandBuilderFactory
         {
-            public IRelationalCommandBuilder Create()
-            {
-                return new FakeRelationalCommandBuilder();
-            }
+            public IRelationalCommandBuilder Create() => new FakeRelationalCommandBuilder();
         }
 
         private class FakeRelationalCommandBuilder : IRelationalCommandBuilder
         {
-            public IndentedStringBuilder CommandTextBuilder { get; } = new IndentedStringBuilder();
+            public IndentedStringBuilder Instance { get; } = new IndentedStringBuilder();
 
-            public IRelationalCommandBuilder AddParameter(string name, object value, Func<IRelationalTypeMapper, RelationalTypeMapping> mapType, bool? nullable)
+            public void AddParameter(IRelationalParameter relationalParameter)
             {
                 throw new NotImplementedException();
             }
 
-            public IRelationalCommand BuildRelationalCommand()
+            public IRelationalParameter CreateParameter(string name, object value, Func<IRelationalTypeMapper, RelationalTypeMapping> mapType, bool? nullable, string invariantName)
             {
-                return new FakeRelationalCommand();
+                throw new NotImplementedException();
             }
+
+            public IRelationalCommand Build() => new FakeRelationalCommand();
         }
 
         private class FakeRelationalCommand : IRelationalCommand
         {
             public string CommandText { get; }
 
-            public IReadOnlyList<RelationalParameter> Parameters { get; }
+            public IReadOnlyList<IRelationalParameter> Parameters { get; }
 
-            public void ExecuteNonQuery(IRelationalConnection connection, bool manageConnection = true)
+            public int ExecuteNonQuery(IRelationalConnection connection, bool manageConnection = true)
             {
+                return 0;
             }
 
-            public Task ExecuteNonQueryAsync(IRelationalConnection connection, CancellationToken cancellationToken = default(CancellationToken), bool manageConnection = true)
+            public Task<int> ExecuteNonQueryAsync(IRelationalConnection connection, bool manageConnection = true, CancellationToken cancellationToken = default(CancellationToken))
                 => Task.FromResult(0);
 
-            public RelationalDataReader ExecuteReader(IRelationalConnection connection, bool manageConnection = true)
+            public RelationalDataReader ExecuteReader(IRelationalConnection connection, bool manageConnection = true, IReadOnlyDictionary<string, object> parameters = null)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<RelationalDataReader> ExecuteReaderAsync(IRelationalConnection connection, CancellationToken cancellationToken = default(CancellationToken), bool manageConnection = true)
+            public Task<RelationalDataReader> ExecuteReaderAsync(IRelationalConnection connection, bool manageConnection = true, IReadOnlyDictionary<string, object> parameters = null, CancellationToken cancellationToken = default(CancellationToken))
             {
                 throw new NotImplementedException();
             }
@@ -215,7 +216,7 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
                 throw new NotImplementedException();
             }
 
-            public Task<object> ExecuteScalarAsync(IRelationalConnection connection, CancellationToken cancellationToken = default(CancellationToken), bool manageConnection = true)
+            public Task<object> ExecuteScalarAsync(IRelationalConnection connection, bool manageConnection = true, CancellationToken cancellationToken = default(CancellationToken))
             {
                 throw new NotImplementedException();
             }
@@ -223,19 +224,39 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
 
         private static SqlException CreateSqlException(int number)
         {
-            var error = (SqlError)Activator.CreateInstance(
-                typeof(SqlError), BindingFlags.Instance | BindingFlags.NonPublic, null,
-                new object[] { number, (byte)0, (byte)0, "Server", "ErrorMessage", "Procedure", 0 }, null);
+            var errorCtors = typeof(SqlError)
+                .GetTypeInfo()
+                .DeclaredConstructors;
 
-            var errors = (SqlErrorCollection)Activator.CreateInstance(
-                typeof(SqlErrorCollection), BindingFlags.Instance | BindingFlags.NonPublic, null,
-                null, null);
+#if NET451
+            var error = (SqlError)errorCtors.First(c => c.GetParameters().Length == 7)
+                    .Invoke(new object[] { number, (byte)0, (byte)0, "Server", "ErrorMessage", "Procedure", 0 });
+#else
+            // CoreCLR internal constructor has an additional parameter
+            var error = (SqlError)errorCtors.First(c => c.GetParameters().Length == 8)
+                .Invoke(new object[] { number, (byte)0, (byte)0, "Server", "ErrorMessage", "Procedure", 0, null });
+#endif
+            var errors = (SqlErrorCollection)typeof(SqlErrorCollection)
+                .GetTypeInfo()
+                .DeclaredConstructors
+                .Single()
+                .Invoke(null);
 
-            typeof(SqlErrorCollection).GetTypeInfo().GetRuntimeMethods().Single(m => m.Name == "Add").Invoke(errors, new object[] { error });
+            typeof(SqlErrorCollection).GetRuntimeMethods().Single(m => m.Name == "Add").Invoke(errors, new object[] { error });
 
-            return (SqlException)Activator.CreateInstance(
-                typeof(SqlException), BindingFlags.Instance | BindingFlags.NonPublic, null,
-                new object[] { "Bang!", errors, null, Guid.NewGuid() }, null);
+            var exceptionCtors = typeof(SqlException)
+                .GetTypeInfo()
+                .DeclaredConstructors;
+
+            if (TestPlatformHelper.IsMono)
+            {
+                return (SqlException)exceptionCtors
+                    .First(c => c.GetParameters().Length == 3)
+                    .Invoke(new object[] { error.Message, null, error });
+            }
+
+            return (SqlException)exceptionCtors.First(c => c.GetParameters().Length == 4)
+                    .Invoke(new object[] { "Bang!", errors, null, Guid.NewGuid() });
         }
     }
 }

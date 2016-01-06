@@ -21,13 +21,13 @@ namespace Microsoft.Data.Entity.Query.Expressions
         internal string DebugView => ToString();
 #endif
 
-        private readonly ISqlQueryGeneratorFactory _sqlQueryGeneratorFactory;
+        private readonly IQuerySqlGeneratorFactory _querySqlGeneratorFactory;
         private readonly List<Expression> _projection = new List<Expression>();
         private readonly List<TableExpressionBase> _tables = new List<TableExpressionBase>();
         private readonly List<Ordering> _orderBy = new List<Ordering>();
 
-        private int? _limit;
-        private int? _offset;
+        private Expression _limit;
+        private Expression _offset;
 
         private int _subqueryDepth = -1;
 
@@ -35,22 +35,22 @@ namespace Microsoft.Data.Entity.Query.Expressions
 
         public virtual Expression Predicate { get; [param: CanBeNull] set; }
 
-        public SelectExpression([NotNull] ISqlQueryGeneratorFactory sqlQueryGeneratorFactory)
+        public SelectExpression([NotNull] IQuerySqlGeneratorFactory querySqlGeneratorFactory)
             : base(null, null)
         {
-            Check.NotNull(sqlQueryGeneratorFactory, nameof(sqlQueryGeneratorFactory));
+            Check.NotNull(querySqlGeneratorFactory, nameof(querySqlGeneratorFactory));
 
-            _sqlQueryGeneratorFactory = sqlQueryGeneratorFactory;
+            _querySqlGeneratorFactory = querySqlGeneratorFactory;
         }
 
         public SelectExpression(
-            [NotNull] ISqlQueryGeneratorFactory sqlQueryGeneratorFactory,
+            [NotNull] IQuerySqlGeneratorFactory querySqlGeneratorFactory,
             [NotNull] string alias)
             : base(null, Check.NotEmpty(alias, nameof(alias)))
         {
-            Check.NotNull(sqlQueryGeneratorFactory, nameof(sqlQueryGeneratorFactory));
+            Check.NotNull(querySqlGeneratorFactory, nameof(querySqlGeneratorFactory));
 
-            _sqlQueryGeneratorFactory = sqlQueryGeneratorFactory;
+            _querySqlGeneratorFactory = querySqlGeneratorFactory;
         }
 
         public override Type Type => _projection.Count == 1
@@ -62,7 +62,7 @@ namespace Microsoft.Data.Entity.Query.Expressions
             Check.NotEmpty(alias, nameof(alias));
 
             var selectExpression
-                = new SelectExpression(_sqlQueryGeneratorFactory, alias)
+                = new SelectExpression(_querySqlGeneratorFactory, alias)
                 {
                     _limit = _limit,
                     _offset = _offset,
@@ -162,9 +162,10 @@ namespace Microsoft.Data.Entity.Query.Expressions
             }
         }
 
-        public virtual int? Limit
+        public virtual Expression Limit
         {
             get { return _limit; }
+            [param: CanBeNull]
             set
             {
                 Check.NotNull(value, nameof(value));
@@ -175,9 +176,10 @@ namespace Microsoft.Data.Entity.Query.Expressions
             }
         }
 
-        public virtual int? Offset
+        public virtual Expression Offset
         {
             get { return _offset; }
+            [param: CanBeNull]
             set
             {
                 if (_limit != null
@@ -227,7 +229,7 @@ namespace Microsoft.Data.Entity.Query.Expressions
         {
             _subqueryDepth++;
 
-            var subquery = new SelectExpression(_sqlQueryGeneratorFactory, SystemAliasPrefix + _subqueryDepth);
+            var subquery = new SelectExpression(_querySqlGeneratorFactory, SystemAliasPrefix + _subqueryDepth);
 
             var columnAliasCounter = 0;
 
@@ -325,7 +327,7 @@ namespace Microsoft.Data.Entity.Query.Expressions
 
             if (expression is SelectExpression)
             {
-                ClearProjection();
+                ClearColumnProjections();
             }
 
             _projection.Add(expression);
@@ -354,8 +356,8 @@ namespace Microsoft.Data.Entity.Query.Expressions
                             var ae = e as AliasExpression;
                             var ce = e.TryGetColumnExpression();
 
-                            return (ce != null && ce.Property == columnExpression?.Property
-                                    && ce.TableAlias == columnExpression?.TableAlias)
+                            return ce != null && ce.Property == columnExpression?.Property
+                                   && ce.TableAlias == columnExpression?.TableAlias
                                    || ae?.Expression == expression;
                         });
 
@@ -470,6 +472,23 @@ namespace Microsoft.Data.Entity.Query.Expressions
         {
             _projection.Clear();
             IsProjectStar = true;
+        }
+
+        public virtual void ClearColumnProjections()
+        {
+            for (int i = _projection.Count - 1; i >= 0; i--)
+            {
+                var aliasExpression = _projection[i] as AliasExpression;
+                if (aliasExpression != null && aliasExpression.Expression is ColumnExpression)
+                {
+                    _projection.RemoveAt(i);
+                }
+            }
+
+            if (_projection.Count == 0)
+            {
+                IsProjectStar = true;
+            }
         }
 
         public virtual void RemoveRangeFromProjection(int index)
@@ -743,19 +762,20 @@ namespace Microsoft.Data.Entity.Query.Expressions
             return this;
         }
 
-        public virtual ISqlQueryGenerator CreateGenerator()
-            => _sqlQueryGeneratorFactory.CreateGenerator(this);
+        public virtual IQuerySqlGenerator CreateDefaultQuerySqlGenerator()
+            => _querySqlGeneratorFactory.CreateDefault(this);
 
-        public virtual ISqlQueryGenerator CreateRawCommandGenerator(
+        public virtual IQuerySqlGenerator CreateFromSqlQuerySqlGenerator(
             [NotNull] string sql,
-            [NotNull] object[] parameters)
-            => _sqlQueryGeneratorFactory.CreateRawCommandGenerator(
-                this,
-                Check.NotEmpty(sql, nameof(sql)),
-                Check.NotNull(parameters, nameof(parameters)));
+            [NotNull] Expression arguments)
+            => _querySqlGeneratorFactory
+                .CreateFromSql(
+                    this,
+                    Check.NotEmpty(sql, nameof(sql)),
+                    Check.NotNull(arguments, nameof(arguments)));
 
         public override string ToString()
-            => CreateGenerator()
+            => CreateDefaultQuerySqlGenerator()
                 .GenerateSql(new Dictionary<string, object>())
                 .CommandText;
 

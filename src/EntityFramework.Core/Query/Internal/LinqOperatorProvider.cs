@@ -6,7 +6,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Extensions.Internal;
@@ -66,8 +65,8 @@ namespace Microsoft.Data.Entity.Query.Internal
 
         [UsedImplicitly]
         internal static IEnumerable<T> _InterceptExceptions<T>(
-            IEnumerable<T> source, Type contextType, ILogger logger)
-            => new ExceptionInterceptor<T>(source, contextType, logger);
+            IEnumerable<T> source, Type contextType, ILogger logger, QueryContext queryContext)
+            => new ExceptionInterceptor<T>(source, contextType, logger, queryContext);
 
         public virtual MethodInfo InterceptExceptions => _interceptExceptions;
 
@@ -76,13 +75,15 @@ namespace Microsoft.Data.Entity.Query.Internal
             private readonly IEnumerable<T> _innerEnumerable;
             private readonly Type _contextType;
             private readonly ILogger _logger;
+            private readonly QueryContext _queryContext;
 
             public ExceptionInterceptor(
-                IEnumerable<T> innerEnumerable, Type contextType, ILogger logger)
+                IEnumerable<T> innerEnumerable, Type contextType, ILogger logger, QueryContext queryContext)
             {
                 _innerEnumerable = innerEnumerable;
                 _contextType = contextType;
                 _logger = logger;
+                _queryContext = queryContext;
             }
 
             public IEnumerator<T> GetEnumerator() => new EnumeratorExceptionInterceptor(this);
@@ -109,6 +110,7 @@ namespace Microsoft.Data.Entity.Query.Internal
                 {
                     try
                     {
+                        _exceptionInterceptor._queryContext.ConcurrencyDetector.EnterCriticalSection();
                         return _innerEnumerator.MoveNext();
                     }
                     catch (Exception exception)
@@ -121,6 +123,10 @@ namespace Microsoft.Data.Entity.Query.Internal
                                 e => CoreStrings.LogExceptionDuringQueryIteration(Environment.NewLine, e));
 
                         throw;
+                    }
+                    finally
+                    {
+                        _exceptionInterceptor._queryContext.ConcurrencyDetector.ExitCriticalSection();
                     }
                 }
 
@@ -141,24 +147,25 @@ namespace Microsoft.Data.Entity.Query.Internal
             IList<Func<TIn, object>> entityAccessors)
             where TIn : class
         {
-            return results.Select(result =>
-                {
-                    if (result != null)
-                    {
-                        for (var i = 0; i < entityTrackingInfos.Count; i++)
-                        {
-                            var entity = entityAccessors[i](result as TIn);
+            queryContext.BeginTrackingQuery();
 
-                            if (entity != null)
-                            {
-                                queryContext.QueryBuffer
-                                    .StartTracking(entity, entityTrackingInfos[i]);
-                            }
+            foreach (var result in results)
+            {
+                if (result != null)
+                {
+                    for (var i = 0; i < entityTrackingInfos.Count; i++)
+                    {
+                        var entity = entityAccessors[i](result as TIn);
+
+                        if (entity != null)
+                        {
+                            queryContext.StartTracking(entity, entityTrackingInfos[i]);
                         }
                     }
+                }
 
-                    return result;
-                });
+                yield return result;
+            }
         }
 
         public virtual MethodInfo TrackEntities => _trackEntities;
@@ -210,25 +217,25 @@ namespace Microsoft.Data.Entity.Query.Internal
 
             public IEnumerator<TOut> GetEnumerator()
             {
-                return _grouping.Select(result =>
-                    {
-                        if (result != null)
-                        {
-                            for (var i = 0; i < _entityTrackingInfos.Count; i++)
-                            {
-                                var entity = _entityAccessors[i](result as TIn);
+                _queryContext.BeginTrackingQuery();
 
-                                if (entity != null)
-                                {
-                                    _queryContext.QueryBuffer
-                                        .StartTracking(entity, _entityTrackingInfos[i]);
-                                }
+                foreach (var result in _grouping)
+                {
+                    if (result != null)
+                    {
+                        for (var i = 0; i < _entityTrackingInfos.Count; i++)
+                        {
+                            var entity = _entityAccessors[i](result as TIn);
+
+                            if (entity != null)
+                            {
+                                _queryContext.StartTracking(entity, _entityTrackingInfos[i]);
                             }
                         }
+                    }
 
-                        return result;
-                    })
-                    .GetEnumerator();
+                    yield return result;
+                }
             }
 
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -409,8 +416,6 @@ namespace Microsoft.Data.Entity.Query.Internal
                 ?? aggregateMethods.Single(mi => mi.IsGenericMethod)
                     .MakeGenericMethod(elementType);
         }
-
-        public virtual Expression AdjustSequenceType(Expression expression) => expression;
 
         public virtual Type MakeSequenceType(Type elementType)
             => typeof(IEnumerable<>)
